@@ -6,6 +6,7 @@ import { getStr } from '../i18n/strings';
 
 const FILTERS = [
   { key: 'day', labelKey: 'thisDay' },
+  { key: 'week', labelKey: 'thisWeek' },
   { key: 'month', labelKey: 'thisMonth' },
   { key: 'year', labelKey: 'thisYear' },
   { key: 'all', labelKey: 'allTime' },
@@ -22,7 +23,11 @@ export default function TimeFilterBar({ value, onChange, language = 'en' }) {
           onPress={() => onChange(f.key)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.label, value === f.key && styles.labelActive]}>
+          <Text
+            style={[styles.label, value === f.key && styles.labelActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {s(f.labelKey)}
           </Text>
         </TouchableOpacity>
@@ -36,26 +41,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.bgCard,
     borderRadius: radius.full,
-    padding: 4,
+    padding: 3,
     marginVertical: spacing.sm,
   },
   btn: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     borderRadius: radius.full,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnActive: {
     backgroundColor: colors.amber,
   },
   label: {
     color: colors.textMuted,
-    fontSize: font.xs,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   labelActive: {
     color: colors.textOnAmber,
-    fontWeight: '700',
   },
 });

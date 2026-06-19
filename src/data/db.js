@@ -8,6 +8,7 @@ const KEYS = {
   EXPENSES: '@construction_expenses',
   SETTINGS: '@construction_settings',
   LANGUAGE: '@construction_language',
+  CONTRACTOR_PAYMENTS: '@construction_contractor_payments',
 };
 
 // Default preset materials (user can delete or add more)
@@ -22,6 +23,7 @@ const DEFAULT_MATERIALS = [
 
 const DEFAULT_SETTINGS = {
   budget: 0,
+  contractAmount: 0,
   projectName: 'My Construction Site',
   currency: 'PKR',
 };
@@ -200,10 +202,77 @@ export const db = {
     }
   },
 
+  // ── Contractor Payments ────────────────────────────────────
+  getContractorPayments: async () => {
+    try {
+      const json = await AsyncStorage.getItem(KEYS.CONTRACTOR_PAYMENTS);
+      return json ? JSON.parse(json) : [];
+    } catch (e) {
+      console.error('getContractorPayments error:', e);
+      return [];
+    }
+  },
+
+  addContractorPayment: async (payment) => {
+    try {
+      const existing = await db.getContractorPayments();
+      const newPay = {
+        id: generateId(),
+        amount: parseFloat(payment.amount) || 0,
+        purpose: payment.purpose || '',
+        purposeUrdu: payment.purposeUrdu || '',
+        date: payment.date || new Date().toISOString(),
+        notes: payment.notes || '',
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [newPay, ...existing];
+      await AsyncStorage.setItem(KEYS.CONTRACTOR_PAYMENTS, JSON.stringify(updated));
+      return newPay;
+    } catch (e) {
+      console.error('addContractorPayment error:', e);
+      throw e;
+    }
+  },
+
+  updateContractorPayment: async (id, updates) => {
+    try {
+      const existing = await db.getContractorPayments();
+      const idx = existing.findIndex((p) => p.id === id);
+      if (idx === -1) throw new Error('Payment not found');
+      existing[idx] = {
+        ...existing[idx],
+        ...updates,
+        amount: parseFloat(updates.amount ?? existing[idx].amount) || 0,
+      };
+      await AsyncStorage.setItem(KEYS.CONTRACTOR_PAYMENTS, JSON.stringify(existing));
+      return existing[idx];
+    } catch (e) {
+      console.error('updateContractorPayment error:', e);
+      throw e;
+    }
+  },
+
+  deleteContractorPayment: async (id) => {
+    try {
+      const existing = await db.getContractorPayments();
+      const filtered = existing.filter((p) => p.id !== id);
+      await AsyncStorage.setItem(KEYS.CONTRACTOR_PAYMENTS, JSON.stringify(filtered));
+    } catch (e) {
+      console.error('deleteContractorPayment error:', e);
+      throw e;
+    }
+  },
+
   // ── Clear All ──────────────────────────────────────────────
   clearAll: async () => {
     try {
-      await AsyncStorage.multiRemove([KEYS.MATERIALS, KEYS.EXPENSES, KEYS.SETTINGS, KEYS.LANGUAGE]);
+      await AsyncStorage.multiRemove([
+        KEYS.MATERIALS,
+        KEYS.EXPENSES,
+        KEYS.SETTINGS,
+        KEYS.LANGUAGE,
+        KEYS.CONTRACTOR_PAYMENTS,
+      ]);
     } catch (e) {
       console.error('clearAll error:', e);
     }

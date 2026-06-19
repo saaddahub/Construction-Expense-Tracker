@@ -10,13 +10,15 @@ export const AppProvider = ({ children }) => {
   const [language, setLanguage] = useState('en');
   const [materials, setMaterials] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [contractorPayments, setContractorPayments] = useState([]);
   const [settings, setSettings] = useState({
     budget: 0,
+    contractAmount: 0,
     projectName: 'My Construction',
     currency: 'PKR',
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [timeFilter, setTimeFilter] = useState('month'); // 'day' | 'month' | 'year' | 'all'
+  const [timeFilter, setTimeFilter] = useState('month'); // 'day' | 'week' | 'month' | 'year' | 'all'
 
   // Load all data on start
   useEffect(() => {
@@ -26,14 +28,16 @@ export const AppProvider = ({ children }) => {
   const loadAll = async () => {
     setIsLoading(true);
     try {
-      const [mats, exps, setts, lang] = await Promise.all([
+      const [mats, exps, pays, setts, lang] = await Promise.all([
         db.getMaterials(),
         db.getExpenses(),
+        db.getContractorPayments(),
         db.getSettings(),
         db.getLanguage(),
       ]);
       setMaterials(mats);
       setExpenses(exps);
+      setContractorPayments(pays);
       setSettings(setts);
       setLanguage(lang);
     } catch (e) {
@@ -82,6 +86,24 @@ export const AppProvider = ({ children }) => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  // --- Contractor Payments CRUD ---
+  const addContractorPayment = useCallback(async (payment) => {
+    const newPay = await db.addContractorPayment(payment);
+    setContractorPayments((prev) => [newPay, ...prev]);
+    return newPay;
+  }, []);
+
+  const updateContractorPayment = useCallback(async (id, updates) => {
+    const updated = await db.updateContractorPayment(id, updates);
+    setContractorPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
+  }, []);
+
+  const deleteContractorPayment = useCallback(async (id) => {
+    await db.deleteContractorPayment(id);
+    setContractorPayments((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   // --- Settings ---
   const updateSettings = useCallback(async (updates) => {
     const newSettings = { ...settings, ...updates };
@@ -99,7 +121,8 @@ export const AppProvider = ({ children }) => {
     await db.clearAll();
     setMaterials([]);
     setExpenses([]);
-    setSettings({ budget: 0, projectName: 'My Construction', currency: 'PKR' });
+    setContractorPayments([]);
+    setSettings({ budget: 0, contractAmount: 0, projectName: 'My Construction', currency: 'PKR' });
   }, []);
 
   // --- Computed values ---
@@ -109,6 +132,10 @@ export const AppProvider = ({ children }) => {
       const d = new Date(e.date);
       if (filter === 'day') {
         return d.toDateString() === now.toDateString();
+      } else if (filter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return d >= oneWeekAgo && d <= now;
       } else if (filter === 'month') {
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       } else if (filter === 'year') {
@@ -130,6 +157,11 @@ export const AppProvider = ({ children }) => {
         const now = new Date();
         const d = new Date(e.date);
         if (filter === 'day') return d.toDateString() === now.toDateString();
+        if (filter === 'week') {
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          return d >= oneWeekAgo && d <= now;
+        }
         if (filter === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         if (filter === 'year') return d.getFullYear() === now.getFullYear();
         return true;
@@ -141,12 +173,37 @@ export const AppProvider = ({ children }) => {
     return getExpensesForMaterial(materialId, filter).reduce((sum, e) => sum + e.total, 0);
   }, [getExpensesForMaterial]);
 
+  // --- Contractor Computations ---
+  const getFilteredContractorPayments = useCallback((filter = timeFilter) => {
+    const now = new Date();
+    return contractorPayments.filter((p) => {
+      const d = new Date(p.date);
+      if (filter === 'day') {
+        return d.toDateString() === now.toDateString();
+      } else if (filter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return d >= oneWeekAgo && d <= now;
+      } else if (filter === 'month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      } else if (filter === 'year') {
+        return d.getFullYear() === now.getFullYear();
+      }
+      return true; // 'all'
+    });
+  }, [contractorPayments, timeFilter]);
+
+  const getTotalPaidToContractor = useCallback((filter = timeFilter) => {
+    return getFilteredContractorPayments(filter).reduce((sum, p) => sum + p.amount, 0);
+  }, [getFilteredContractorPayments, timeFilter]);
+
   return (
     <AppContext.Provider
       value={{
         language,
         materials,
         expenses,
+        contractorPayments,
         settings,
         isLoading,
         timeFilter,
@@ -157,6 +214,9 @@ export const AppProvider = ({ children }) => {
         addExpense,
         updateExpense,
         deleteExpense,
+        addContractorPayment,
+        updateContractorPayment,
+        deleteContractorPayment,
         updateSettings,
         toggleLanguage,
         clearAllData,
@@ -164,6 +224,8 @@ export const AppProvider = ({ children }) => {
         getTotalSpent,
         getExpensesForMaterial,
         getTotalForMaterial,
+        getFilteredContractorPayments,
+        getTotalPaidToContractor,
         reload: loadAll,
       }}
     >

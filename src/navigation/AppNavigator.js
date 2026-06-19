@@ -17,6 +17,7 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AddMaterialScreen from '../screens/AddMaterialScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
+import AddContractorPaymentScreen from '../screens/AddContractorPaymentScreen';
 import MaterialDetailScreen from '../screens/MaterialDetailScreen';
 
 const Tab = createBottomTabNavigator();
@@ -99,6 +100,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="AddExpense"
           component={AddExpenseScreen}
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="AddContractorPayment"
+          component={AddContractorPaymentScreen}
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
         <Stack.Screen name="MaterialDetail" component={MaterialDetailScreen} />
