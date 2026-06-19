@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "تعمیر ٹریکر",
+    "slug": "construction-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.construction.tracker"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#0f1117"
+      },
+      "package": "com.construction.tracker",
+      "permissions": []
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#0f1117"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ef336cd7-af6d-4915-8ebc-10d70f13181c"
+      }
+    }
+  }
+}

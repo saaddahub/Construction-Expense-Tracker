@@ -1,0 +1,13 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore Expo local files
+.expo/
+dist/
+web-build/
+
+# Ignore local env and keys
+*.jks
+*.key
+*.pem
+.env*.local

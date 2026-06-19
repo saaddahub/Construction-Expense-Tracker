@@ -1,0 +1,292 @@
+// src/i18n/strings.js
+// Bilingual strings — English + Urdu
+
+export const strings = {
+  en: {
+    // App
+    appName: 'Construction Tracker',
+    appNameUrdu: 'تعمیر ٹریکر',
+
+    // Bottom Tabs
+    dashboard: 'Dashboard',
+    materials: 'Materials',
+    reports: 'Reports',
+    settings: 'Settings',
+
+    // Dashboard
+    totalSpent: 'Total Spent',
+    budget: 'Budget',
+    budgetUsed: 'used',
+    remaining: 'Remaining',
+    noBudgetSet: 'No budget set',
+    thisDay: 'Today',
+    thisMonth: 'This Month',
+    thisYear: 'This Year',
+    allTime: 'All Time',
+    noMaterials: 'No materials added yet',
+    addFirstMaterial: 'Tap + to add your first material category',
+    quickAdd: 'Quick Add',
+    recentExpenses: 'Recent Expenses',
+    noExpenses: 'No expenses yet',
+    viewAll: 'View All',
+
+    // Materials
+    myMaterials: 'My Materials',
+    addMaterial: 'Add Material',
+    editMaterial: 'Edit Material',
+    deleteMaterial: 'Delete Material',
+    materialName: 'Material Name',
+    materialNameUrdu: 'Urdu Name (Optional)',
+    unit: 'Unit',
+    selectIcon: 'Select Icon',
+    selectColor: 'Select Color',
+    totalEntries: 'entries',
+    noMaterialsYet: 'No materials yet',
+    addMaterialHint: 'Tap the + button to add your first material',
+
+    // Add Expense
+    addExpense: 'Add Expense',
+    editExpense: 'Edit Expense',
+    quantity: 'Quantity',
+    pricePerUnit: 'Price Per Unit (₨)',
+    totalAmount: 'Total Amount',
+    date: 'Date',
+    notes: 'Notes',
+    notesPlaceholder: 'Optional notes...',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    autoCalculated: 'Auto-calculated',
+    selectMaterial: 'Select Material',
+    selectDate: 'Select Date',
+
+    // Material Detail
+    expenseHistory: 'Expense History',
+    addNewExpense: 'Add Expense',
+    totalSpentOn: 'Total spent on',
+    noExpensesForMaterial: 'No expenses recorded for this material yet',
+    spendingChart: 'Spending Chart',
+    daily: 'Daily',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+
+    // Reports
+    summary: 'Summary',
+    categoryBreakdown: 'Category Breakdown',
+    spendingTrend: 'Spending Trend',
+    topCategories: 'Top Categories',
+    totalEntries2: 'Total Entries',
+    avgPerDay: 'Avg / Day',
+    highestDay: 'Highest Day',
+    exportCSV: 'Export CSV',
+    shareReport: 'Share Report',
+
+    // Settings
+    general: 'General',
+    language: 'Language',
+    currency: 'Currency',
+    setBudget: 'Set Budget',
+    budgetAmount: 'Budget Amount (₨)',
+    enterBudget: 'Enter total budget',
+    projectName: 'Project Name',
+    enterProjectName: 'Enter project name',
+    dangerZone: 'Danger Zone',
+    clearAllData: 'Clear All Data',
+    clearConfirm: 'Are you sure? This will delete all your data permanently.',
+    clearConfirmBtn: 'Yes, Delete All',
+    aboutApp: 'About',
+    version: 'Version',
+
+    // Common
+    confirm: 'Confirm',
+    yes: 'Yes',
+    no: 'No',
+    ok: 'OK',
+    error: 'Error',
+    success: 'Success',
+    loading: 'Loading...',
+    pkr: '₨',
+    edit: 'Edit',
+    close: 'Close',
+    add: 'Add',
+
+    // Units
+    bags: 'Bags',
+    kg: 'KG',
+    tons: 'Tons',
+    cubicFt: 'Cubic Ft',
+    cubicM: 'Cubic M',
+    pieces: 'Pieces',
+    feet: 'Feet',
+    meters: 'Meters',
+    liters: 'Liters',
+    days: 'Days',
+    hours: 'Hours',
+    custom: 'Custom',
+
+    // Default Materials
+    cement: 'Cement',
+    bricks: 'Bricks',
+    steel: 'Steel / Sarya',
+    sand: 'Sand',
+    gravel: 'Gravel / Bajri',
+    labor: 'Labor',
+    plumbing: 'Plumbing',
+    electrical: 'Electrical',
+    tiles: 'Tiles',
+    paint: 'Paint',
+    wood: 'Wood',
+    other: 'Other',
+
+    // Validation
+    fieldRequired: 'This field is required',
+    invalidNumber: 'Please enter a valid number',
+    nameTooShort: 'Name must be at least 2 characters',
+  },
+
+  ur: {
+    // App
+    appName: 'تعمیر ٹریکر',
+    appNameUrdu: 'Construction Tracker',
+
+    // Bottom Tabs
+    dashboard: 'ڈیش بورڈ',
+    materials: 'سامان',
+    reports: 'رپورٹ',
+    settings: 'ترتیبات',
+
+    // Dashboard
+    totalSpent: 'کل خرچ',
+    budget: 'بجٹ',
+    budgetUsed: 'استعمال',
+    remaining: 'باقی',
+    noBudgetSet: 'بجٹ نہیں',
+    thisDay: 'آج',
+    thisMonth: 'اس مہینے',
+    thisYear: 'اس سال',
+    allTime: 'مجموعی',
+    noMaterials: 'کوئی سامان نہیں',
+    addFirstMaterial: '+ دبائیں اور پہلا سامان شامل کریں',
+    quickAdd: 'جلدی اضافہ',
+    recentExpenses: 'حالیہ اخراجات',
+    noExpenses: 'کوئی خرچ نہیں',
+    viewAll: 'سب دیکھیں',
+
+    // Materials
+    myMaterials: 'میرا سامان',
+    addMaterial: 'سامان شامل کریں',
+    editMaterial: 'سامان ترمیم',
+    deleteMaterial: 'سامان حذف',
+    materialName: 'سامان کا نام',
+    materialNameUrdu: 'اردو نام (اختیاری)',
+    unit: 'اکائی',
+    selectIcon: 'آئیکن منتخب',
+    selectColor: 'رنگ منتخب',
+    totalEntries: 'اندراجات',
+    noMaterialsYet: 'ابھی کوئی سامان نہیں',
+    addMaterialHint: '+ بٹن دبائیں',
+
+    // Add Expense
+    addExpense: 'خرچ شامل',
+    editExpense: 'خرچ ترمیم',
+    quantity: 'مقدار',
+    pricePerUnit: 'فی اکائی قیمت (₨)',
+    totalAmount: 'کل رقم',
+    date: 'تاریخ',
+    notes: 'نوٹس',
+    notesPlaceholder: 'اختیاری نوٹس...',
+    save: 'محفوظ',
+    cancel: 'منسوخ',
+    delete: 'حذف',
+    autoCalculated: 'خودکار حساب',
+    selectMaterial: 'سامان منتخب',
+    selectDate: 'تاریخ منتخب',
+
+    // Material Detail
+    expenseHistory: 'اخراجات کی تاریخ',
+    addNewExpense: 'خرچ شامل',
+    totalSpentOn: 'کل خرچ:',
+    noExpensesForMaterial: 'ابھی کوئی خرچ نہیں',
+    spendingChart: 'خرچ چارٹ',
+    daily: 'روزانہ',
+    weekly: 'ہفتہ وار',
+    monthly: 'ماہانہ',
+
+    // Reports
+    summary: 'خلاصہ',
+    categoryBreakdown: 'زمرہ بندی',
+    spendingTrend: 'خرچ کا رجحان',
+    topCategories: 'اہم زمرے',
+    totalEntries2: 'کل اندراجات',
+    avgPerDay: 'روزانہ اوسط',
+    highestDay: 'سب سے زیادہ دن',
+    exportCSV: 'CSV ایکسپورٹ',
+    shareReport: 'رپورٹ شیئر',
+
+    // Settings
+    general: 'عمومی',
+    language: 'زبان',
+    currency: 'کرنسی',
+    setBudget: 'بجٹ مقرر',
+    budgetAmount: 'بجٹ رقم (₨)',
+    enterBudget: 'کل بجٹ درج کریں',
+    projectName: 'منصوبے کا نام',
+    enterProjectName: 'منصوبے کا نام درج کریں',
+    dangerZone: 'خطرناک علاقہ',
+    clearAllData: 'سب ڈیٹا حذف',
+    clearConfirm: 'کیا آپ واقعی تمام ڈیٹا حذف کرنا چاہتے ہیں؟',
+    clearConfirmBtn: 'ہاں، حذف کریں',
+    aboutApp: 'معلومات',
+    version: 'ورژن',
+
+    // Common
+    confirm: 'تصدیق',
+    yes: 'ہاں',
+    no: 'نہیں',
+    ok: 'ٹھیک ہے',
+    error: 'خرابی',
+    success: 'کامیابی',
+    loading: 'لوڈ ہو رہا ہے...',
+    pkr: '₨',
+    edit: 'ترمیم',
+    close: 'بند',
+    add: 'شامل',
+
+    // Units
+    bags: 'بوری',
+    kg: 'کلو',
+    tons: 'ٹن',
+    cubicFt: 'کیوبک فٹ',
+    cubicM: 'کیوبک میٹر',
+    pieces: 'عدد',
+    feet: 'فٹ',
+    meters: 'میٹر',
+    liters: 'لیٹر',
+    days: 'دن',
+    hours: 'گھنٹے',
+    custom: 'کسٹم',
+
+    // Default Materials
+    cement: 'سیمنٹ',
+    bricks: 'اینٹیں',
+    steel: 'سریا',
+    sand: 'ریت',
+    gravel: 'بجری',
+    labor: 'مزدوری',
+    plumbing: 'پلمبنگ',
+    electrical: 'بجلی',
+    tiles: 'ٹائل',
+    paint: 'رنگ',
+    wood: 'لکڑی',
+    other: 'دیگر',
+
+    // Validation
+    fieldRequired: 'یہ خانہ لازمی ہے',
+    invalidNumber: 'درست نمبر درج کریں',
+    nameTooShort: 'نام کم از کم 2 حروف کا ہو',
+  },
+};
+
+export const getStr = (lang, key) => {
+  return strings[lang]?.[key] || strings.en[key] || key;
+};
