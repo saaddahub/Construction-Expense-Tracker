@@ -1,7 +1,7 @@
 // src/components/MaterialCard.js
 import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import Text from 'Text';
+import Text from './Text';
 
 import { Ionicons } from '@expo/vector-icons';
 import { BarChart } from 'react-native-gifted-charts';

@@ -1,7 +1,7 @@
 // src/components/TimeFilterBar.js
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import Text from 'Text';
+import Text from './Text';
 
 import { colors, spacing, radius, font } from '../theme/colors';
 import { getStr } from '../i18n/strings';
