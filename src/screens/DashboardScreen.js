@@ -233,7 +233,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
           </LinearGradient>
-        ) : (
+        ) : activeTab === 'contractor' ? (
           /* Contractor Card */
           <LinearGradient
             colors={['#4f46e5', '#6366f1']}
@@ -412,7 +412,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
           </View>
-        ) : (
+        ) : activeTab === 'contractor' ? (
           /* Contractor View: Contractor payments ledger */
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
