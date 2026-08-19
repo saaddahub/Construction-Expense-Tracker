@@ -11,6 +11,7 @@ export const AppProvider = ({ children }) => {
   const [materials, setMaterials] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [contractorPayments, setContractorPayments] = useState([]);
+  const [naveedPayments, setNaveedPayments] = useState([]);
   const [settings, setSettings] = useState({
     budget: 0,
     contractAmount: 0,
@@ -28,16 +29,18 @@ export const AppProvider = ({ children }) => {
   const loadAll = async () => {
     setIsLoading(true);
     try {
-      const [mats, exps, pays, setts, lang] = await Promise.all([
+      const [mats, exps, pays, naveedPays, setts, lang] = await Promise.all([
         db.getMaterials(),
         db.getExpenses(),
         db.getContractorPayments(),
+        db.getNaveedPayments(),
         db.getSettings(),
         db.getLanguage(),
       ]);
       setMaterials(mats);
       setExpenses(exps);
       setContractorPayments(pays);
+      setNaveedPayments(naveedPays);
       setSettings(setts);
       setLanguage(lang);
     } catch (e) {
@@ -104,6 +107,24 @@ export const AppProvider = ({ children }) => {
     setContractorPayments((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  // --- Naveed Payments CRUD ---
+  const addNaveedPayment = useCallback(async (payment) => {
+    const newPay = await db.addNaveedPayment(payment);
+    setNaveedPayments((prev) => [newPay, ...prev]);
+    return newPay;
+  }, []);
+
+  const updateNaveedPayment = useCallback(async (id, updates) => {
+    const updated = await db.updateNaveedPayment(id, updates);
+    setNaveedPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
+  }, []);
+
+  const deleteNaveedPayment = useCallback(async (id) => {
+    await db.deleteNaveedPayment(id);
+    setNaveedPayments((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   // --- Settings ---
   const updateSettings = useCallback(async (updates) => {
     const newSettings = { ...settings, ...updates };
@@ -122,7 +143,8 @@ export const AppProvider = ({ children }) => {
     setMaterials([]);
     setExpenses([]);
     setContractorPayments([]);
-    setSettings({ budget: 0, contractAmount: 0, projectName: 'My Construction', currency: 'PKR' });
+    setNaveedPayments([]);
+    setSettings({ budget: 0, contractAmount: 0, naveedContractAmount: 0, projectName: 'My Construction', currency: 'PKR' });
   }, []);
 
   // --- Computed values ---
@@ -197,6 +219,29 @@ export const AppProvider = ({ children }) => {
     return getFilteredContractorPayments(filter).reduce((sum, p) => sum + p.amount, 0);
   }, [getFilteredContractorPayments, timeFilter]);
 
+  const getFilteredNaveedPayments = useCallback((filter = timeFilter) => {
+    const now = new Date();
+    return naveedPayments.filter((p) => {
+      const d = new Date(p.date);
+      if (filter === 'day') {
+        return d.toDateString() === now.toDateString();
+      } else if (filter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return d >= oneWeekAgo && d <= now;
+      } else if (filter === 'month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      } else if (filter === 'year') {
+        return d.getFullYear() === now.getFullYear();
+      }
+      return true; // 'all'
+    });
+  }, [naveedPayments, timeFilter]);
+
+  const getTotalPaidToNaveed = useCallback((filter = timeFilter) => {
+    return getFilteredNaveedPayments(filter).reduce((sum, p) => sum + p.amount, 0);
+  }, [getFilteredNaveedPayments, timeFilter]);
+
   return (
     <AppContext.Provider
       value={{
@@ -204,6 +249,7 @@ export const AppProvider = ({ children }) => {
         materials,
         expenses,
         contractorPayments,
+        naveedPayments,
         settings,
         isLoading,
         timeFilter,
@@ -217,6 +263,9 @@ export const AppProvider = ({ children }) => {
         addContractorPayment,
         updateContractorPayment,
         deleteContractorPayment,
+        addNaveedPayment,
+        updateNaveedPayment,
+        deleteNaveedPayment,
         updateSettings,
         toggleLanguage,
         clearAllData,
@@ -226,6 +275,8 @@ export const AppProvider = ({ children }) => {
         getTotalForMaterial,
         getFilteredContractorPayments,
         getTotalPaidToContractor,
+        getFilteredNaveedPayments,
+        getTotalPaidToNaveed,
         reload: loadAll,
       }}
     >

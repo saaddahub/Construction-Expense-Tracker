@@ -1,4 +1,4 @@
-// src/screens/AddContractorPaymentScreen.js
+// src/screens/AddNaveedPaymentScreen.js
 import React, { useState, useMemo } from 'react';
 import {
   View, StyleSheet, TextInput, TouchableOpacity,
@@ -12,12 +12,12 @@ import { colors, spacing, radius, font } from '../theme/colors';
 import { getStr } from '../i18n/strings';
 import { formatPKRFull } from '../utils/helpers';
 
-export default function AddContractorPaymentScreen({ navigation, route }) {
-  const { language, contractorPayments, addContractorPayment, updateContractorPayment } = useApp();
+export default function AddNaveedPaymentScreen({ navigation, route }) {
+  const { language, naveedPayments, addNaveedPayment, updateNaveedPayment } = useApp();
   const s = (key) => getStr(language, key);
 
   const editId = route?.params?.paymentId;
-  const existingPay = editId ? contractorPayments.find((p) => p.id === editId) : null;
+  const existingPay = editId ? naveedPayments.find((p) => p.id === editId) : null;
 
   const [amount, setAmount] = useState(existingPay ? String(existingPay.amount) : '');
   const [purpose, setPurpose] = useState(existingPay?.purpose || '');
@@ -54,9 +54,9 @@ export default function AddContractorPaymentScreen({ navigation, route }) {
       };
 
       if (existingPay) {
-        await updateContractorPayment(editId, payData);
+        await updateNaveedPayment(editId, payData);
       } else {
-        await addContractorPayment(payData);
+        await addNaveedPayment(payData);
       }
       navigation.goBack();
     } catch (e) {

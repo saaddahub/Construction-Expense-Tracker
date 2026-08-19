@@ -1,9 +1,11 @@
 // src/screens/DashboardScreen.js
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Dimensions, Alert,
+  View, StyleSheet, ScrollView, TouchableOpacity,
+  StatusBar, Dimensions, Alert, LayoutAnimation, Platform, UIManager
 } from 'react-native';
+import Text from '../components/Text';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
@@ -16,16 +18,26 @@ import TimeFilterBar from '../components/TimeFilterBar';
 
 const { width } = Dimensions.get('window');
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function DashboardScreen({ navigation }) {
   const {
     language, materials, expenses, settings,
     timeFilter, setTimeFilter,
     getTotalSpent, getFilteredExpenses, getTotalForMaterial,
     contractorPayments, getFilteredContractorPayments, getTotalPaidToContractor, deleteContractorPayment,
+    naveedPayments, getFilteredNaveedPayments, getTotalPaidToNaveed, deleteNaveedPayment,
   } = useApp();
   const s = (key) => getStr(language, key);
 
   const [activeTab, setActiveTab] = useState('owner'); // 'owner' | 'contractor'
+
+  const handleTabChange = (tab) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setActiveTab(tab);
+  };
 
   // --- Owner Calculations ---
   const totalSpent = getTotalSpent(timeFilter);
@@ -40,6 +52,13 @@ export default function DashboardScreen({ navigation }) {
   const remainingContractAmount = contractAmount - totalPaidToContractor; // Remaining contract budget
   const contractPct = contractAmount > 0 ? Math.min((totalPaidToContractor / contractAmount) * 100, 100) : 0;
 
+  // --- Naveed Calculations ---
+  const naveedPaymentsFiltered = getFilteredNaveedPayments(timeFilter);
+  const totalPaidToNaveed = getTotalPaidToNaveed(timeFilter);
+  const naveedContractAmount = settings.naveedContractAmount || 0;
+  const remainingNaveedContractAmount = naveedContractAmount - totalPaidToNaveed;
+  const naveedContractPct = naveedContractAmount > 0 ? Math.min((totalPaidToNaveed / naveedContractAmount) * 100, 100) : 0;
+
   // Bar chart data — last 7 days (based on active tab)
   const barData = useMemo(() => {
     if (activeTab === 'owner') {
@@ -50,7 +69,7 @@ export default function DashboardScreen({ navigation }) {
         frontColor: colors.amber,
         gradientColor: colors.amberDark,
       }));
-    } else {
+    } else if (activeTab === 'contractor') {
       // Map contractor payments
       const grouped = groupByDay(contractorPayments, 7);
       return grouped.map((d) => ({
@@ -59,8 +78,17 @@ export default function DashboardScreen({ navigation }) {
         frontColor: colors.info,
         gradientColor: '#4f46e5',
       }));
+    } else {
+      // Map naveed payments
+      const grouped = groupByDay(naveedPayments, 7);
+      return grouped.map((d) => ({
+        value: d.value,
+        label: d.label,
+        frontColor: colors.success,
+        gradientColor: '#10b981',
+      }));
     }
-  }, [expenses, contractorPayments, activeTab]);
+  }, [expenses, contractorPayments, naveedPayments, activeTab]);
 
   const recentExpenses = useMemo(() => {
     return [...expenses]
@@ -74,6 +102,12 @@ export default function DashboardScreen({ navigation }) {
       .slice(0, 5);
   }, [contractorPayments]);
 
+  const recentNaveedPayments = useMemo(() => {
+    return [...naveedPayments]
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+  }, [naveedPayments]);
+
   const handleDeletePayment = (pay) => {
     Alert.alert(
       s('delete'),
@@ -83,6 +117,19 @@ export default function DashboardScreen({ navigation }) {
       [
         { text: s('cancel'), style: 'cancel' },
         { text: s('delete'), style: 'destructive', onPress: () => deleteContractorPayment(pay.id) },
+      ]
+    );
+  };
+
+  const handleDeleteNaveedPayment = (pay) => {
+    Alert.alert(
+      s('delete'),
+      language === 'ur'
+        ? `${formatPKRFull(pay.amount)} کی نوید کی ادائیگی حذف کریں؟`
+        : `Delete Naveed payment of ${formatPKRFull(pay.amount)}?`,
+      [
+        { text: s('cancel'), style: 'cancel' },
+        { text: s('delete'), style: 'destructive', onPress: () => deleteNaveedPayment(pay.id) },
       ]
     );
   };
@@ -103,8 +150,10 @@ export default function DashboardScreen({ navigation }) {
             onPress={() => {
               if (activeTab === 'owner') {
                 navigation.navigate('AddExpense', {});
-              } else {
+              } else if (activeTab === 'contractor') {
                 navigation.navigate('AddContractorPayment', {});
+              } else {
+                navigation.navigate('AddNaveedPayment', {});
               }
             }}
           >
@@ -116,7 +165,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.toggleRow}>
           <TouchableOpacity
             style={[styles.toggleBtn, activeTab === 'owner' && styles.toggleBtnActiveOwner]}
-            onPress={() => setActiveTab('owner')}
+            onPress={() => handleTabChange('owner')}
             activeOpacity={0.8}
           >
             <Text style={[styles.toggleText, activeTab === 'owner' && styles.toggleTextActive]}>
@@ -125,11 +174,20 @@ export default function DashboardScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.toggleBtn, activeTab === 'contractor' && styles.toggleBtnActiveContractor]}
-            onPress={() => setActiveTab('contractor')}
+            onPress={() => handleTabChange('contractor')}
             activeOpacity={0.8}
           >
             <Text style={[styles.toggleText, activeTab === 'contractor' && styles.toggleTextActive]}>
               👷 {s('contractor')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleBtn, activeTab === 'naveed' && styles.toggleBtnActiveNaveed]}
+            onPress={() => handleTabChange('naveed')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toggleText, activeTab === 'naveed' && styles.toggleTextActive]}>
+              👷 {s('naveed')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -216,6 +274,47 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
           </LinearGradient>
+        ) : (
+          /* Naveed Card */
+          <LinearGradient
+            colors={['#10b981', '#34d399']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.totalCard}
+          >
+            <Text style={styles.totalLabel} numberOfLines={1}>
+              {naveedContractAmount > 0 ? s('remainingBalance') : s('totalPaid')}
+            </Text>
+            <Text style={styles.totalAmount} numberOfLines={1} adjustsFontSizeToFit>
+              {formatPKRFull(naveedContractAmount > 0 ? remainingNaveedContractAmount : totalPaidToNaveed)}
+            </Text>
+
+            {naveedContractAmount > 0 ? (
+              <View style={styles.budgetRow}>
+                <View style={styles.budgetBar}>
+                  <View style={[styles.budgetFill, { width: `${naveedContractPct}%`, backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                </View>
+                <Text style={styles.budgetPct} numberOfLines={1}>
+                  {Math.round(naveedContractPct)}% {s('budgetUsed')}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.noBudgetHint} numberOfLines={1}>{s('noBudgetSet')}</Text>
+            )}
+
+            {naveedContractAmount > 0 && (
+              <View style={styles.subAmountsRow}>
+                <View style={styles.subAmountBlock}>
+                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('naveed')}</Text>
+                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(naveedContractAmount)}</Text>
+                </View>
+                <View style={styles.subDivider} />
+                <View style={styles.subAmountBlock}>
+                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('totalPaid')}</Text>
+                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(totalPaidToNaveed)}</Text>
+                </View>
+              </View>
+            )}
+          </LinearGradient>
         )}
       </LinearGradient>
 
@@ -226,7 +325,7 @@ export default function DashboardScreen({ navigation }) {
         {/* Spending Trend Bar Chart */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            📊 {activeTab === 'owner' ? s('spendingTrend') : `${s('contractor')} ${s('spendingTrend')}`}
+            📊 {activeTab === 'owner' ? s('spendingTrend') : `${activeTab === 'contractor' ? s('contractor') : s('naveed')} ${s('spendingTrend')}`}
           </Text>
           <View style={styles.chartCard}>
             {barData.some((d) => d.value > 0) ? (
@@ -360,6 +459,53 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
           </View>
+        ) : (
+          /* Naveed View: Naveed payments ledger */
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>👷 {s('naveed')}</Text>
+            </View>
+
+            {naveedPayments.length === 0 ? (
+              <View style={styles.emptyMaterials}>
+                <Ionicons name="people-outline" size={56} color={colors.textMuted} />
+                <Text style={styles.emptyTitle}>{s('noPayments')}</Text>
+                <Text style={styles.emptyHint}>{s('addPaymentHint')}</Text>
+              </View>
+            ) : (
+              <View style={styles.recentCard}>
+                {recentNaveedPayments.map((pay, i) => (
+                  <View key={pay.id} style={[styles.recentRow, i < recentNaveedPayments.length - 1 && styles.recentRowBorder]}>
+                    <View style={[styles.recentDot, { backgroundColor: colors.success }]} />
+                    <View style={styles.recentInfo}>
+                      <Text style={styles.recentMatName} numberOfLines={1}>{pay.purpose}</Text>
+                      <Text style={styles.recentDate} numberOfLines={1}>
+                        {formatDate(pay.date)}
+                        {pay.notes ? ` · ${pay.notes}` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.contractorActions}>
+                      <Text style={[styles.recentAmount, { color: colors.success }]}>{formatPKR(pay.amount)}</Text>
+                      <View style={styles.actionIcons}>
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('AddNaveedPayment', { paymentId: pay.id })}
+                          style={styles.smallIconBtn}
+                        >
+                          <Ionicons name="pencil-outline" size={14} color={colors.textMuted} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteNaveedPayment(pay)}
+                          style={styles.smallIconBtn}
+                        >
+                          <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
         <View style={{ height: 80 }} />
@@ -399,6 +545,9 @@ const styles = StyleSheet.create({
   },
   toggleBtnActiveContractor: {
     backgroundColor: colors.info,
+  },
+  toggleBtnActiveNaveed: {
+    backgroundColor: colors.success,
   },
   toggleText: {
     color: colors.textMuted,

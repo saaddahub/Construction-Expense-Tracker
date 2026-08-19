@@ -1,9 +1,11 @@
 // src/screens/SettingsScreen.js
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, StatusBar, Switch,
 } from 'react-native';
+import Text from '../components/Text';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
@@ -17,6 +19,7 @@ export default function SettingsScreen() {
 
   const [budget, setBudget] = useState(settings.budget > 0 ? String(settings.budget) : '');
   const [contractAmount, setContractAmount] = useState(settings.contractAmount > 0 ? String(settings.contractAmount) : '');
+  const [naveedContractAmount, setNaveedContractAmount] = useState(settings.naveedContractAmount > 0 ? String(settings.naveedContractAmount) : '');
   const [projectName, setProjectName] = useState(settings.projectName || '');
 
   const handleSaveBudget = async () => {
@@ -29,6 +32,12 @@ export default function SettingsScreen() {
     const val = parseFloat(contractAmount) || 0;
     await updateSettings({ contractAmount: val });
     Alert.alert(s('success'), language === 'ur' ? 'ٹھیکیدار کا بجٹ محفوظ ہو گیا' : 'Contract amount saved!');
+  };
+
+  const handleSaveNaveedContractAmount = async () => {
+    const val = parseFloat(naveedContractAmount) || 0;
+    await updateSettings({ naveedContractAmount: val });
+    Alert.alert(s('success'), language === 'ur' ? 'نوید کا بجٹ محفوظ ہو گیا' : 'Naveed amount saved!');
   };
 
   const handleSaveProject = async () => {
@@ -50,6 +59,7 @@ export default function SettingsScreen() {
             await clearAllData();
             setBudget('');
             setContractAmount('');
+            setNaveedContractAmount('');
             setProjectName('');
           },
         },
@@ -154,6 +164,33 @@ export default function SettingsScreen() {
               />
             </View>
             <TouchableOpacity style={styles.saveBtn} onPress={handleSaveContractAmount}>
+              <Ionicons name="checkmark" size={18} color={colors.textOnAmber} />
+              <Text style={styles.saveBtnText}>{s('save')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Naveed Contractor Budget */}
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>{s('naveedContractAmount')}</Text>
+          <View style={styles.card}>
+            <Text style={styles.inputHint}>
+              {language === 'ur'
+                ? 'نوید کا کل کنٹریکٹ بجٹ درج کریں'
+                : 'Enter total contract amount agreed with Naveed'}
+            </Text>
+            <View style={styles.budgetRow}>
+              <Text style={styles.currencySymbol}>₨</Text>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={naveedContractAmount}
+                onChangeText={setNaveedContractAmount}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+              />
+            </View>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveNaveedContractAmount}>
               <Ionicons name="checkmark" size={18} color={colors.textOnAmber} />
               <Text style={styles.saveBtnText}>{s('save')}</Text>
             </TouchableOpacity>

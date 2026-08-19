@@ -1,6 +1,8 @@
 // src/navigation/AppNavigator.js
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Text from '../components/Text';
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -18,6 +20,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import AddMaterialScreen from '../screens/AddMaterialScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 import AddContractorPaymentScreen from '../screens/AddContractorPaymentScreen';
+import AddNaveedPaymentScreen from '../screens/AddNaveedPaymentScreen';
 import MaterialDetailScreen from '../screens/MaterialDetailScreen';
 
 const Tab = createBottomTabNavigator();
@@ -105,6 +108,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="AddContractorPayment"
           component={AddContractorPaymentScreen}
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="AddNaveedPayment"
+          component={AddNaveedPaymentScreen}
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
         <Stack.Screen name="MaterialDetail" component={MaterialDetailScreen} />

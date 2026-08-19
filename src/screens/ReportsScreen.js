@@ -1,9 +1,11 @@
 // src/screens/ReportsScreen.js
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, StyleSheet, ScrollView, TouchableOpacity,
   StatusBar, Dimensions, Share, Alert,
 } from 'react-native';
+import Text from '../components/Text';
+
 import { Ionicons } from '@expo/vector-icons';
 import { BarChart, PieChart } from 'react-native-gifted-charts';
 import { useApp } from '../context/AppContext';

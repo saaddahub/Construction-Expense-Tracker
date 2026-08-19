@@ -1,9 +1,11 @@
 // src/screens/MaterialsScreen.js
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, StyleSheet, FlatList, TouchableOpacity,
   StatusBar, Alert,
 } from 'react-native';
+import Text from '../components/Text';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';

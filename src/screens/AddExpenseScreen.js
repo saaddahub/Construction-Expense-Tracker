@@ -1,9 +1,11 @@
 // src/screens/AddExpenseScreen.js
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
+  View, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, Alert, StatusBar, Platform,
 } from 'react-native';
+import Text from '../components/Text';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';

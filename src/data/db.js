@@ -9,6 +9,7 @@ const KEYS = {
   SETTINGS: '@construction_settings',
   LANGUAGE: '@construction_language',
   CONTRACTOR_PAYMENTS: '@construction_contractor_payments',
+  NAVEED_PAYMENTS: '@construction_naveed_payments',
 };
 
 // Default preset materials (user can delete or add more)
@@ -24,6 +25,7 @@ const DEFAULT_MATERIALS = [
 const DEFAULT_SETTINGS = {
   budget: 0,
   contractAmount: 0,
+  naveedContractAmount: 0,
   projectName: 'My Construction Site',
   currency: 'PKR',
 };
@@ -263,6 +265,67 @@ export const db = {
     }
   },
 
+  // ── Naveed Payments ────────────────────────────────────────
+  getNaveedPayments: async () => {
+    try {
+      const json = await AsyncStorage.getItem(KEYS.NAVEED_PAYMENTS);
+      return json ? JSON.parse(json) : [];
+    } catch (e) {
+      console.error('getNaveedPayments error:', e);
+      return [];
+    }
+  },
+
+  addNaveedPayment: async (payment) => {
+    try {
+      const existing = await db.getNaveedPayments();
+      const newPay = {
+        id: generateId(),
+        amount: parseFloat(payment.amount) || 0,
+        purpose: payment.purpose || '',
+        purposeUrdu: payment.purposeUrdu || '',
+        date: payment.date || new Date().toISOString(),
+        notes: payment.notes || '',
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [newPay, ...existing];
+      await AsyncStorage.setItem(KEYS.NAVEED_PAYMENTS, JSON.stringify(updated));
+      return newPay;
+    } catch (e) {
+      console.error('addNaveedPayment error:', e);
+      throw e;
+    }
+  },
+
+  updateNaveedPayment: async (id, updates) => {
+    try {
+      const existing = await db.getNaveedPayments();
+      const idx = existing.findIndex((p) => p.id === id);
+      if (idx === -1) throw new Error('Payment not found');
+      existing[idx] = {
+        ...existing[idx],
+        ...updates,
+        amount: parseFloat(updates.amount ?? existing[idx].amount) || 0,
+      };
+      await AsyncStorage.setItem(KEYS.NAVEED_PAYMENTS, JSON.stringify(existing));
+      return existing[idx];
+    } catch (e) {
+      console.error('updateNaveedPayment error:', e);
+      throw e;
+    }
+  },
+
+  deleteNaveedPayment: async (id) => {
+    try {
+      const existing = await db.getNaveedPayments();
+      const filtered = existing.filter((p) => p.id !== id);
+      await AsyncStorage.setItem(KEYS.NAVEED_PAYMENTS, JSON.stringify(filtered));
+    } catch (e) {
+      console.error('deleteNaveedPayment error:', e);
+      throw e;
+    }
+  },
+
   // ── Clear All ──────────────────────────────────────────────
   clearAll: async () => {
     try {
@@ -272,6 +335,7 @@ export const db = {
         KEYS.SETTINGS,
         KEYS.LANGUAGE,
         KEYS.CONTRACTOR_PAYMENTS,
+        KEYS.NAVEED_PAYMENTS,
       ]);
     } catch (e) {
       console.error('clearAll error:', e);
