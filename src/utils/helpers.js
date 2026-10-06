@@ -49,54 +49,52 @@ export const getMonthName = (monthIndex) => {
 /**
  * Group expenses by day for charts
  */
-export const groupByDay = (expenses, days = 7) => {
-  const result = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toDateString();
-    const total = expenses
-      .filter((e) => new Date(e.date).toDateString() === dateStr)
-      .reduce((sum, e) => sum + e.total, 0);
-    result.push({ label: formatDateShort(d.toISOString()), value: total });
+// Index once per expense change rather than filtering and sorting for each row.
+export const indexExpenses = (expenses) => {
+  const index = Object.create(null);
+  for (const expense of expenses) {
+    const group = index[expense.materialId] || (index[expense.materialId] = { total: 0, count: 0, expenses: [] });
+    group.total += expense.total;
+    group.count += 1;
+    group.expenses.push(expense);
   }
-  return result;
+  return index;
 };
 
-/**
- * Group expenses by month for charts
- */
-export const groupByMonth = (expenses, months = 6) => {
-  const result = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - i);
-    const month = d.getMonth();
-    const year = d.getFullYear();
-    const total = expenses
-      .filter((e) => {
-        const ed = new Date(e.date);
-        return ed.getMonth() === month && ed.getFullYear() === year;
-      })
-      .reduce((sum, e) => sum + e.total, 0);
-    result.push({ label: getMonthName(month), value: total });
+export const groupByDay = (entries, days = 7) => {
+  const totals = new Map();
+  for (const entry of entries) {
+    const key = new Date(entry.date).toDateString();
+    totals.set(key, (totals.get(key) || 0) + (entry.total ?? entry.amount ?? 0));
   }
-  return result;
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (days - 1 - index));
+    return { label: formatDateShort(date.toISOString()), value: totals.get(date.toDateString()) || 0 };
+  });
 };
 
-/**
- * Build pie data for categories
- */
+export const groupByMonth = (entries, months = 6) => {
+  const totals = new Map();
+  for (const entry of entries) {
+    const date = new Date(entry.date);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    totals.set(key, (totals.get(key) || 0) + (entry.total ?? entry.amount ?? 0));
+  }
+  return Array.from({ length: months }, (_, index) => {
+    const date = new Date();
+    // Start at the first so months shorter than today do not overflow.
+    date.setDate(1);
+    date.setMonth(date.getMonth() - (months - 1 - index));
+    return { label: getMonthName(date.getMonth()), value: totals.get(`${date.getFullYear()}-${date.getMonth()}`) || 0 };
+  });
+};
+
 export const buildPieData = (materials, expenses, chartColors) => {
-  return materials
-    .map((mat, i) => {
-      const total = expenses
-        .filter((e) => e.materialId === mat.id)
-        .reduce((sum, e) => sum + e.total, 0);
-      return { name: mat.name, value: total, color: mat.color || chartColors[i % chartColors.length] };
-    })
-    .filter((d) => d.value > 0)
-    .sort((a, b) => b.value - a.value);
+  const index = indexExpenses(expenses);
+  return materials.map((mat, i) => ({
+    name: mat.name, value: index[mat.id]?.total || 0, color: mat.color || chartColors[i % chartColors.length],
+  })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
 };
 
 /**
@@ -145,7 +143,7 @@ export const PRESET_COLORS = [
  */
 export const buildCSV = (expenses, materials) => {
   const header = 'Date,Material,Quantity,Unit,Price/Unit,Total(PKR),Notes\n';
-  const rows = expenses
+  const rows = [...expenses]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .map((e) => {
       const mat = materials.find((m) => m.id === e.materialId);

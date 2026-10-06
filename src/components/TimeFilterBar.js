@@ -21,14 +21,15 @@ export default function TimeFilterBar({ value, onChange, language = 'en' }) {
       {FILTERS.map((f) => (
         <TouchableOpacity
           key={f.key}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: value === f.key }}
           style={[styles.btn, value === f.key && styles.btnActive]}
           onPress={() => onChange(f.key)}
           activeOpacity={0.7}
         >
           <Text
             style={[styles.label, value === f.key && styles.labelActive]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
+            numberOfLines={2}
           >
             {s(f.labelKey)}
           </Text>
@@ -42,28 +43,30 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: colors.bgCard,
-    borderRadius: radius.full,
+    borderRadius: radius.sm,
     padding: 3,
     marginVertical: spacing.sm,
   },
   btn: {
     flex: 1,
-    paddingVertical: 6,
+    minHeight: 44,
+    paddingVertical: 8,
     paddingHorizontal: 2,
-    borderRadius: radius.full,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnActive: {
-    backgroundColor: colors.amber,
+    backgroundColor: colors.bgElevated,
   },
   label: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
     textAlign: 'center',
   },
   labelActive: {
-    color: colors.textOnAmber,
+    color: colors.textPrimary,
   },
 });

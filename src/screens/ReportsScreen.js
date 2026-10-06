@@ -1,28 +1,27 @@
 // src/screens/ReportsScreen.js
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Dimensions, Share, Alert,
+  Share, Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import Screen from '../components/Screen';
 
-import { Ionicons } from '@expo/vector-icons';
-import { BarChart, PieChart } from 'react-native-gifted-charts';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import SpendingChart from '../components/SpendingChart';
+import CategoryChart from '../components/CategoryChart';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
 import { formatPKR, formatPKRFull, buildPieData, groupByMonth, buildCSV } from '../utils/helpers';
 import { getStr } from '../i18n/strings';
 import TimeFilterBar from '../components/TimeFilterBar';
 
-const { width } = Dimensions.get('window');
-const CHART_W = width - spacing.md * 2 - 32;
-
 export default function ReportsScreen() {
-  const { language, materials, expenses, settings, timeFilter, setTimeFilter, getFilteredExpenses, getTotalSpent } = useApp();
+  const { language, materials, expenses, settings, timeFilter, setTimeFilter, getFilteredExpenses } = useApp();
   const s = (key) => getStr(language, key);
 
-  const filteredExpenses = getFilteredExpenses(timeFilter);
-  const totalSpent = getTotalSpent(timeFilter);
+  const filteredExpenses = useMemo(() => getFilteredExpenses(timeFilter), [getFilteredExpenses, timeFilter]);
+  const totalSpent = useMemo(() => filteredExpenses.reduce((total, entry) => total + entry.total, 0), [filteredExpenses]);
 
   // Pie data
   const pieData = useMemo(() => buildPieData(materials, filteredExpenses, colors.chartColors), [materials, filteredExpenses]);
@@ -34,7 +33,6 @@ export default function ReportsScreen() {
       value: d.value,
       label: d.label,
       frontColor: colors.amber,
-      gradientColor: colors.amberDark,
     }));
   }, [expenses]);
 
@@ -48,7 +46,7 @@ export default function ReportsScreen() {
 
   const highestSingle = useMemo(() => {
     if (filteredExpenses.length === 0) return 0;
-    return Math.max(...filteredExpenses.map((e) => e.total));
+    return filteredExpenses.reduce((highest, entry) => Math.max(highest, entry.total), 0);
   }, [filteredExpenses]);
 
   const handleExport = async () => {
@@ -63,12 +61,9 @@ export default function ReportsScreen() {
     }
   };
 
-  const [focusedSlice, setFocusedSlice] = useState(null);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+    <Screen tab>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{s('reports')}</Text>
@@ -135,23 +130,7 @@ export default function ReportsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{s('categoryBreakdown')}</Text>
             <View style={styles.pieCard}>
-              <PieChart
-                data={pieData}
-                donut
-                innerRadius={60}
-                radius={90}
-                centerLabelComponent={() => (
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: font.xs }}>{s('totalSpent')}</Text>
-                    <Text style={{ color: colors.textPrimary, fontSize: font.md, fontWeight: '800' }}>
-                      {formatPKR(totalSpent)}
-                    </Text>
-                  </View>
-                )}
-                isAnimated
-                animationDuration={700}
-                onPress={(slice) => setFocusedSlice(slice)}
-              />
+              <CategoryChart data={pieData} total={totalSpent} label={s('totalSpent')} />
               {/* Legend */}
               <View style={styles.legend}>
                 {pieData.map((d, i) => (
@@ -171,28 +150,10 @@ export default function ReportsScreen() {
 
         {/* Monthly Bar Chart */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{s('spendingTrend')} (6 months)</Text>
+          <Text style={styles.sectionTitle}>{s('spendingTrend')} · {s('last6Months')}</Text>
           <View style={styles.chartCard}>
             {monthlyData.some((d) => d.value > 0) ? (
-              <BarChart
-                data={monthlyData}
-                width={CHART_W}
-                height={200}
-                barWidth={36}
-                spacing={18}
-                barBorderRadius={6}
-                hideRules
-                xAxisColor={colors.border}
-                yAxisColor={colors.border}
-                yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 11, fontWeight: '600' }}
-                noOfSections={4}
-                formatYLabel={(v) => formatPKR(v)}
-                isAnimated
-                animationDuration={700}
-                showGradient
-                gradientColor={colors.amberDark}
-              />
+              <SpendingChart data={monthlyData} height={160} />
             ) : (
               <View style={styles.emptyChart}>
                 <Ionicons name="bar-chart-outline" size={48} color={colors.textMuted} />
@@ -234,7 +195,7 @@ export default function ReportsScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
@@ -242,24 +203,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 54, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
-    backgroundColor: colors.bgCard,
+    paddingTop: 16, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '800' },
+  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '600' },
   exportBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.amber, borderRadius: radius.full,
-    paddingHorizontal: spacing.md, paddingVertical: 8,
+    backgroundColor: colors.amber, borderRadius: radius.md,
+    paddingHorizontal: 12, paddingVertical: 12, minHeight: 44,
   },
   exportBtnText: { color: colors.textOnAmber, fontSize: font.sm, fontWeight: '700' },
   scroll: { padding: spacing.md },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginVertical: spacing.sm },
   statCard: {
     flex: 1, minWidth: '45%', backgroundColor: colors.bgCard,
-    borderRadius: radius.lg, padding: spacing.md, alignItems: 'center',
+    borderRadius: radius.md, padding: spacing.md, alignItems: 'flex-start', borderWidth: 1, borderColor: colors.borderLight,
   },
   statLabel: { color: colors.textMuted, fontSize: font.xs, marginBottom: 4 },
-  statValue: { fontSize: font.xl, fontWeight: '800' },
+  statValue: { fontSize: font.xl, fontWeight: '600' },
   budgetCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
   budgetHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   budgetTotal: { color: colors.textSecondary, fontSize: font.sm, fontWeight: '600' },
@@ -285,8 +247,8 @@ const styles = StyleSheet.create({
   topCatBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   topCatRank: { color: colors.textMuted, fontSize: font.sm, width: 24 },
   topCatDot: { width: 8, height: 8, borderRadius: 4 },
-  topCatName: { color: colors.textSecondary, fontSize: font.sm, width: 80 },
-  topCatBarWrap: { flex: 1, height: 6, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
+  topCatName: { color: colors.textSecondary, fontSize: font.sm, flex: 1 },
+  topCatBarWrap: { width: 40, height: 6, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
   topCatBar: { height: '100%', borderRadius: radius.full },
   topCatValue: { fontSize: font.sm, fontWeight: '700', width: 64, textAlign: 'right' },
   emptyState: { paddingVertical: spacing.xxl, alignItems: 'center', gap: spacing.md },

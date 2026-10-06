@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import {
   View, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, StatusBar, Switch,
+  TextInput, Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import Screen from '../components/Screen';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
 import { getStr } from '../i18n/strings';
@@ -20,6 +21,7 @@ export default function SettingsScreen() {
   const [budget, setBudget] = useState(settings.budget > 0 ? String(settings.budget) : '');
   const [contractAmount, setContractAmount] = useState(settings.contractAmount > 0 ? String(settings.contractAmount) : '');
   const [naveedContractAmount, setNaveedContractAmount] = useState(settings.naveedContractAmount > 0 ? String(settings.naveedContractAmount) : '');
+  const [zakirContractAmount, setZakirContractAmount] = useState(settings.zakirContractAmount > 0 ? String(settings.zakirContractAmount) : '');
   const [projectName, setProjectName] = useState(settings.projectName || '');
 
   const handleSaveBudget = async () => {
@@ -38,6 +40,12 @@ export default function SettingsScreen() {
     const val = parseFloat(naveedContractAmount) || 0;
     await updateSettings({ naveedContractAmount: val });
     Alert.alert(s('success'), language === 'ur' ? 'نوید کا بجٹ محفوظ ہو گیا' : 'Naveed amount saved!');
+  };
+
+  const handleSaveZakirContractAmount = async () => {
+    const val = parseFloat(zakirContractAmount) || 0;
+    await updateSettings({ zakirContractAmount: val });
+    Alert.alert(s('success'), language === 'ur' ? 'ذاکر کا بجٹ محفوظ ہو گیا' : 'Zakir amount saved!');
   };
 
   const handleSaveProject = async () => {
@@ -60,6 +68,7 @@ export default function SettingsScreen() {
             setBudget('');
             setContractAmount('');
             setNaveedContractAmount('');
+            setZakirContractAmount('');
             setProjectName('');
           },
         },
@@ -68,15 +77,13 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+    <Screen tab>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{s('settings')}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* Language Toggle */}
         <View style={styles.group}>
@@ -197,6 +204,33 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Zakir Contractor Budget */}
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>{s('zakirContractAmount')}</Text>
+          <View style={styles.card}>
+            <Text style={styles.inputHint}>
+              {language === 'ur'
+                ? 'ذاکر کا کل کنٹریکٹ بجٹ درج کریں'
+                : 'Enter total contract amount agreed with Zakir'}
+            </Text>
+            <View style={styles.budgetRow}>
+              <Text style={styles.currencySymbol}>₨</Text>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={zakirContractAmount}
+                onChangeText={setZakirContractAmount}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+              />
+            </View>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveZakirContractAmount}>
+              <Ionicons name="checkmark" size={18} color={colors.textOnAmber} />
+              <Text style={styles.saveBtnText}>{s('save')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* About */}
         <View style={styles.group}>
           <Text style={styles.groupLabel}>{s('aboutApp')}</Text>
@@ -230,20 +264,21 @@ export default function SettingsScreen() {
 
         <View style={{ height: 80 }} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
-    paddingTop: 54, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
-    backgroundColor: colors.bgCard,
+    paddingTop: 16, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '800' },
+  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '600' },
   scroll: { padding: spacing.md },
   group: { marginBottom: spacing.lg },
-  groupLabel: { color: colors.textMuted, fontSize: font.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm },
+  groupLabel: { color: colors.textSecondary, fontSize: font.sm, fontWeight: '700', letterSpacing: 0.2, marginBottom: spacing.sm },
   card: { backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -259,7 +294,7 @@ const styles = StyleSheet.create({
   langUr: { color: colors.textPrimary, fontSize: font.sm, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 8 },
   inputHint: { color: colors.textMuted, fontSize: font.xs },
   budgetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  currencySymbol: { color: colors.amber, fontSize: font.xl, fontWeight: '800' },
+  currencySymbol: { color: colors.amber, fontSize: font.xl, fontWeight: '600' },
   input: {
     backgroundColor: colors.bgInput, borderRadius: radius.md,
     paddingHorizontal: spacing.md, paddingVertical: 12,
@@ -277,7 +312,7 @@ const styles = StyleSheet.create({
     width: 56, height: 56, borderRadius: radius.lg,
     backgroundColor: colors.amberGlow, justifyContent: 'center', alignItems: 'center',
   },
-  aboutTitle: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '800' },
+  aboutTitle: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '600' },
   aboutSub: { color: colors.textMuted, fontSize: font.sm },
   aboutVersion: { color: colors.textMuted, fontSize: font.xs },
   aboutDesc: { color: colors.textSecondary, fontSize: font.sm, lineHeight: 20 },

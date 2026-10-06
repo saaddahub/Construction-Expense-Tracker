@@ -1,23 +1,25 @@
 // src/screens/MaterialsScreen.js
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View, StyleSheet, FlatList, TouchableOpacity,
-  StatusBar, Alert,
+  Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import Screen from '../components/Screen';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
-import { formatPKR } from '../utils/helpers';
+import { formatPKR, indexExpenses } from '../utils/helpers';
 import { getStr } from '../i18n/strings';
 
 export default function MaterialsScreen({ navigation }) {
-  const { language, materials, expenses, deleteMaterial, getTotalForMaterial } = useApp();
+  const { language, materials, expenses, deleteMaterial } = useApp();
   const s = (key) => getStr(language, key);
+  const totals = useMemo(() => indexExpenses(expenses), [expenses]);
 
   const handleDelete = (mat) => {
-    const expCount = expenses.filter((e) => e.materialId === mat.id).length;
+    const expCount = (totals[mat.id]?.count || 0);
     Alert.alert(
       s('deleteMaterial'),
       language === 'ur'
@@ -35,8 +37,8 @@ export default function MaterialsScreen({ navigation }) {
   };
 
   const renderItem = ({ item: mat }) => {
-    const total = getTotalForMaterial(mat.id, 'all');
-    const expCount = expenses.filter((e) => e.materialId === mat.id).length;
+    const total = totals[mat.id]?.total || 0;
+    const expCount = (totals[mat.id]?.count || 0);
     const displayName = language === 'ur' && mat.nameUrdu ? mat.nameUrdu : mat.name;
 
     return (
@@ -56,11 +58,11 @@ export default function MaterialsScreen({ navigation }) {
           <Text style={styles.entryCount}>{expCount} {s('totalEntries')} · {mat.unit}</Text>
         </View>
         <View style={styles.right}>
-          <Text style={[styles.total, { color: mat.color || colors.amber }]}>{formatPKR(total)}</Text>
+          <Text style={styles.total}>{formatPKR(total)}</Text>
           <View style={styles.actions}>
             <TouchableOpacity
               onPress={() => navigation.navigate('AddMaterial', { materialId: mat.id })}
-              style={styles.actionBtn}
+              accessibilityRole="button" accessibilityLabel={s('editMaterial')} style={styles.actionBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="pencil-outline" size={18} color={colors.textMuted} />
@@ -79,14 +81,12 @@ export default function MaterialsScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+    <Screen tab>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{s('myMaterials')}</Text>
         <TouchableOpacity
-          style={styles.addBtn}
+          accessibilityRole="button" accessibilityLabel={s('addMaterial')} style={styles.addBtn}
           onPress={() => navigation.navigate('AddMaterial', {})}
         >
           <Ionicons name="add" size={24} color={colors.textOnAmber} />
@@ -102,6 +102,9 @@ export default function MaterialsScreen({ navigation }) {
       ) : (
         <FlatList
           data={materials}
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={5}
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -109,7 +112,7 @@ export default function MaterialsScreen({ navigation }) {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
@@ -119,17 +122,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 54,
+    paddingTop: 16,
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '800' },
+  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '600' },
   addBtn: {
-    width: 40, height: 40, borderRadius: radius.full,
+    width: 44, height: 44, borderRadius: radius.md,
     backgroundColor: colors.amber, justifyContent: 'center', alignItems: 'center',
   },
-  list: { padding: spacing.md, paddingBottom: 100 },
+  list: { padding: spacing.md, paddingBottom: 24 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -145,9 +149,9 @@ const styles = StyleSheet.create({
   matNameUrdu: { color: colors.textMuted, fontSize: font.xs, marginTop: 1 },
   entryCount: { color: colors.textMuted, fontSize: font.xs, marginTop: 3 },
   right: { alignItems: 'flex-end', gap: 4 },
-  total: { fontSize: font.md, fontWeight: '800' },
-  actions: { flexDirection: 'row', gap: spacing.sm },
-  actionBtn: { padding: 4 },
+  total: { color: colors.textPrimary, fontSize: font.md, fontWeight: '600' },
+  actions: { flexDirection: 'row' },
+  actionBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.sm },
   emptyTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '700' },
   emptyHint: { color: colors.textMuted, fontSize: font.sm, textAlign: 'center', paddingHorizontal: spacing.xl },

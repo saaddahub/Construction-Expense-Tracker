@@ -1,612 +1,224 @@
-// src/screens/DashboardScreen.js
-import React, { useState, useMemo } from 'react';
-import {
-  View, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Dimensions, Alert, LayoutAnimation, Platform, UIManager
-} from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Text from '../components/Text';
-
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
-import { colors, spacing, radius, font } from '../theme/colors';
-import { formatPKRFull, formatPKR, groupByDay, formatDate } from '../utils/helpers';
-import { getStr } from '../i18n/strings';
-import { BarChart } from 'react-native-gifted-charts';
+import Screen from '../components/Screen';
+import SpendingChart from '../components/SpendingChart';
 import MaterialCard from '../components/MaterialCard';
 import TimeFilterBar from '../components/TimeFilterBar';
+import { useApp } from '../context/AppContext';
+import { colors, spacing, radius, font } from '../theme/colors';
+import { formatPKRFull, formatPKR, groupByDay, formatDate, indexExpenses } from '../utils/helpers';
+import { getStr } from '../i18n/strings';
 
-const { width } = Dimensions.get('window');
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+const ACCOUNTS = ['owner', 'contractor', 'naveed', 'zakir'];
+const ROUTES = { contractor: 'AddContractorPayment', naveed: 'AddNaveedPayment', zakir: 'AddZakirPayment' };
+const EMPTY = [];
 
 export default function DashboardScreen({ navigation }) {
-  const {
-    language, materials, expenses, settings,
-    timeFilter, setTimeFilter,
-    getTotalSpent, getFilteredExpenses, getTotalForMaterial,
-    contractorPayments, getFilteredContractorPayments, getTotalPaidToContractor, deleteContractorPayment,
-    naveedPayments, getFilteredNaveedPayments, getTotalPaidToNaveed, deleteNaveedPayment,
-  } = useApp();
+  const app = useApp();
+  const { language, materials, expenses, settings, timeFilter, setTimeFilter } = app;
   const s = (key) => getStr(language, key);
-
-  const [activeTab, setActiveTab] = useState('owner'); // 'owner' | 'contractor'
-
-  const handleTabChange = (tab) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setActiveTab(tab);
+  const [activeTab, setActiveTab] = useState('owner');
+  const owner = activeTab === 'owner';
+  const accounts = {
+    contractor: { payments: app.contractorPayments, filtered: app.getFilteredContractorPayments, budget: settings.contractAmount, remove: app.deleteContractorPayment },
+    naveed: { payments: app.naveedPayments, filtered: app.getFilteredNaveedPayments, budget: settings.naveedContractAmount, remove: app.deleteNaveedPayment },
+    zakir: { payments: app.zakirPayments, filtered: app.getFilteredZakirPayments, budget: settings.zakirContractAmount, remove: app.deleteZakirPayment },
   };
+  const account = accounts[activeTab];
+  const source = owner ? expenses : account.payments;
+  const filterRecords = owner ? app.getFilteredExpenses : account.filtered;
+  const filtered = useMemo(() => filterRecords(timeFilter), [filterRecords, timeFilter]);
+  const total = useMemo(() => filtered.reduce((sum, item) => sum + (owner ? item.total : item.amount), 0), [filtered, owner]);
+  const budget = (owner ? settings.budget : account.budget) || 0;
+  const remaining = budget - total;
+  const pct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0;
+  const bars = useMemo(() => groupByDay(source, 7), [source]);
+  const recent = useMemo(() => [...source].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5), [source]);
+  const materialIndex = useMemo(() => indexExpenses(expenses), [expenses]);
+  const filteredIndex = useMemo(() => owner ? indexExpenses(filtered) : {}, [filtered, owner]);
+  const materialMap = useMemo(() => new Map(materials.map((m) => [m.id, m])), [materials]);
+  const openMaterial = useCallback((id) => navigation.navigate('MaterialDetail', { materialId: id }), [navigation]);
+  const addExpense = useCallback((id) => navigation.navigate('AddExpense', { materialId: id }), [navigation]);
+  const addEntry = () => navigation.navigate(owner ? 'AddExpense' : ROUTES[activeTab], {});
 
-  // --- Owner Calculations ---
-  const totalSpent = getTotalSpent(timeFilter);
-  const budget = settings.budget || 0;
-  const remainingBalance = budget - totalSpent; // Remaining Budget
-  const budgetPct = budget > 0 ? Math.min((totalSpent / budget) * 100, 100) : 0;
+  const deletePayment = (pay) => Alert.alert(s('delete'),
+    language === 'ur'
+      ? `${s(activeTab)}: ${formatPKRFull(pay.amount)} کی ادائیگی حذف کریں؟`
+      : `Delete ${s(activeTab)} payment of ${formatPKRFull(pay.amount)}?`,
+    [{ text: s('cancel'), style: 'cancel' },
+      { text: s('delete'), style: 'destructive', onPress: () => account.remove(pay.id) }]);
 
-  // --- Contractor Calculations ---
-  const contractorPaymentsFiltered = getFilteredContractorPayments(timeFilter);
-  const totalPaidToContractor = getTotalPaidToContractor(timeFilter);
-  const contractAmount = settings.contractAmount || 0;
-  const remainingContractAmount = contractAmount - totalPaidToContractor; // Remaining contract budget
-  const contractPct = contractAmount > 0 ? Math.min((totalPaidToContractor / contractAmount) * 100, 100) : 0;
-
-  // --- Naveed Calculations ---
-  const naveedPaymentsFiltered = getFilteredNaveedPayments(timeFilter);
-  const totalPaidToNaveed = getTotalPaidToNaveed(timeFilter);
-  const naveedContractAmount = settings.naveedContractAmount || 0;
-  const remainingNaveedContractAmount = naveedContractAmount - totalPaidToNaveed;
-  const naveedContractPct = naveedContractAmount > 0 ? Math.min((totalPaidToNaveed / naveedContractAmount) * 100, 100) : 0;
-
-  // Bar chart data — last 7 days (based on active tab)
-  const barData = useMemo(() => {
-    if (activeTab === 'owner') {
-      const grouped = groupByDay(expenses, 7);
-      return grouped.map((d) => ({
-        value: d.value,
-        label: d.label,
-        frontColor: colors.amber,
-        gradientColor: colors.amberDark,
-      }));
-    } else if (activeTab === 'contractor') {
-      // Map contractor payments
-      const grouped = groupByDay(contractorPayments, 7);
-      return grouped.map((d) => ({
-        value: d.value,
-        label: d.label,
-        frontColor: colors.info,
-        gradientColor: '#4f46e5',
-      }));
-    } else {
-      // Map naveed payments
-      const grouped = groupByDay(naveedPayments, 7);
-      return grouped.map((d) => ({
-        value: d.value,
-        label: d.label,
-        frontColor: colors.success,
-        gradientColor: '#10b981',
-      }));
-    }
-  }, [expenses, contractorPayments, naveedPayments, activeTab]);
-
-  const recentExpenses = useMemo(() => {
-    return [...expenses]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5);
-  }, [expenses]);
-
-  const recentPayments = useMemo(() => {
-    return [...contractorPayments]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5);
-  }, [contractorPayments]);
-
-  const recentNaveedPayments = useMemo(() => {
-    return [...naveedPayments]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 5);
-  }, [naveedPayments]);
-
-  const handleDeletePayment = (pay) => {
-    Alert.alert(
-      s('delete'),
-      language === 'ur'
-        ? `${formatPKRFull(pay.amount)} کی ٹھیکیدار کی ادائیگی حذف کریں؟`
-        : `Delete contractor payment of ${formatPKRFull(pay.amount)}?`,
-      [
-        { text: s('cancel'), style: 'cancel' },
-        { text: s('delete'), style: 'destructive', onPress: () => deleteContractorPayment(pay.id) },
-      ]
-    );
-  };
-
-  const handleDeleteNaveedPayment = (pay) => {
-    Alert.alert(
-      s('delete'),
-      language === 'ur'
-        ? `${formatPKRFull(pay.amount)} کی نوید کی ادائیگی حذف کریں؟`
-        : `Delete Naveed payment of ${formatPKRFull(pay.amount)}?`,
-      [
-        { text: s('cancel'), style: 'cancel' },
-        { text: s('delete'), style: 'destructive', onPress: () => deleteNaveedPayment(pay.id) },
-      ]
-    );
-  };
+  const renderPayment = ({ item: pay }) => (
+    <View style={styles.paymentRow}>
+      <View style={styles.rowInfo}>
+        <Text style={styles.rowTitle}>{pay.purpose}</Text>
+        <Text style={styles.rowMeta}>{formatDate(pay.date)}</Text>
+        {!!pay.notes && <Text style={styles.rowMeta} numberOfLines={2}>{pay.notes}</Text>}
+      </View>
+      <View style={styles.paymentRight}>
+        <Text style={styles.rowAmount}>{formatPKR(pay.amount)}</Text>
+        <View style={styles.actions}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('editPayment')} style={styles.iconButton}
+            onPress={() => navigation.navigate(ROUTES[activeTab], { paymentId: pay.id })}>
+            <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('deletePayment')} style={styles.iconButton}
+            onPress={() => deletePayment(pay)}>
+            <Ionicons name="trash-outline" size={17} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
-      {/* Header */}
-      <LinearGradient colors={['#1a1d27', colors.bg]} style={styles.header}>
+    <Screen tab>
+      <View style={styles.header}>
         <View style={styles.headerTop}>
+          <View style={styles.brandIcon}><Ionicons name="construct-outline" size={20} color={colors.amber} /></View>
           <View style={styles.titleBlock}>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>{s('appName')}</Text>
-            <Text style={styles.headerTitle} numberOfLines={1}>{settings.projectName || 'Construction Site'}</Text>
+            <Text style={styles.eyebrow}>{s('appName')}</Text>
+            <Text style={styles.title} numberOfLines={1}>{settings.projectName}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: activeTab === 'owner' ? colors.amber : colors.info }]}
-            onPress={() => {
-              if (activeTab === 'owner') {
-                navigation.navigate('AddExpense', {});
-              } else if (activeTab === 'contractor') {
-                navigation.navigate('AddContractorPayment', {});
-              } else {
-                navigation.navigate('AddNaveedPayment', {});
-              }
-            }}
-          >
-            <Ionicons name="add" size={28} color={activeTab === 'owner' ? colors.textOnAmber : '#fff'} />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={owner ? s('addExpense') : s('addPayment')}
+            style={styles.addButton} onPress={addEntry}>
+            <Ionicons name="add" size={26} color={colors.textOnAmber} />
           </TouchableOpacity>
         </View>
-
-        {/* Sliding Tab Toggle (Owner vs. Contractor) */}
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'owner' && styles.toggleBtnActiveOwner]}
-            onPress={() => handleTabChange('owner')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, activeTab === 'owner' && styles.toggleTextActive]}>
-              🏗️ {s('owner')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'contractor' && styles.toggleBtnActiveContractor]}
-            onPress={() => handleTabChange('contractor')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, activeTab === 'contractor' && styles.toggleTextActive]}>
-              👷 {s('contractor')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleBtn, activeTab === 'naveed' && styles.toggleBtnActiveNaveed]}
-            onPress={() => handleTabChange('naveed')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleText, activeTab === 'naveed' && styles.toggleTextActive]}>
-              👷 {s('naveed')}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.accounts}>
+          {ACCOUNTS.map((key) => (
+            <TouchableOpacity key={key} accessibilityRole="tab" accessibilityState={{ selected: activeTab === key }}
+              style={[styles.account, activeTab === key && styles.accountActive]} onPress={() => setActiveTab(key)}>
+              <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}
+                style={[styles.accountText, activeTab === key && styles.accountTextActive]}>{s(key)}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        {/* Dynamic Budget Display Card */}
-        {activeTab === 'owner' ? (
-          <LinearGradient
-            colors={[colors.amberDark, colors.amber]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.totalCard}
-          >
-            <Text style={styles.totalLabel} numberOfLines={1}>
-              {budget > 0 ? s('remainingBalance') : s('totalSpent')}
-            </Text>
-            <Text style={styles.totalAmount} numberOfLines={1} adjustsFontSizeToFit>
-              {formatPKRFull(budget > 0 ? remainingBalance : totalSpent)}
-            </Text>
-
-            {budget > 0 ? (
-              <View style={styles.budgetRow}>
-                <View style={styles.budgetBar}>
-                  <View style={[styles.budgetFill, { width: `${budgetPct}%` }]} />
-                </View>
-                <Text style={styles.budgetPct} numberOfLines={1}>
-                  {Math.round(budgetPct)}% {s('budgetUsed')}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.noBudgetHint} numberOfLines={1}>{s('noBudgetSet')}</Text>
-            )}
-
-            {budget > 0 && (
-              <View style={styles.subAmountsRow}>
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('budget')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(budget)}</Text>
-                </View>
-                <View style={styles.subDivider} />
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('totalSpent')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(totalSpent)}</Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
-        ) : activeTab === 'contractor' ? (
-          /* Contractor Card */
-          <LinearGradient
-            colors={['#4f46e5', '#6366f1']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.totalCard}
-          >
-            <Text style={styles.totalLabel} numberOfLines={1}>
-              {contractAmount > 0 ? s('remainingBalance') : s('totalPaid')}
-            </Text>
-            <Text style={styles.totalAmount} numberOfLines={1} adjustsFontSizeToFit>
-              {formatPKRFull(contractAmount > 0 ? remainingContractAmount : totalPaidToContractor)}
-            </Text>
-
-            {contractAmount > 0 ? (
-              <View style={styles.budgetRow}>
-                <View style={styles.budgetBar}>
-                  <View style={[styles.budgetFill, { width: `${contractPct}%`, backgroundColor: 'rgba(255,255,255,0.7)' }]} />
-                </View>
-                <Text style={styles.budgetPct} numberOfLines={1}>
-                  {Math.round(contractPct)}% {s('budgetUsed')}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.noBudgetHint} numberOfLines={1}>{s('noBudgetSet')}</Text>
-            )}
-
-            {contractAmount > 0 && (
-              <View style={styles.subAmountsRow}>
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('contractor')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(contractAmount)}</Text>
-                </View>
-                <View style={styles.subDivider} />
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('totalPaid')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(totalPaidToContractor)}</Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
-        ) : (
-          /* Naveed Card */
-          <LinearGradient
-            colors={['#10b981', '#34d399']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.totalCard}
-          >
-            <Text style={styles.totalLabel} numberOfLines={1}>
-              {naveedContractAmount > 0 ? s('remainingBalance') : s('totalPaid')}
-            </Text>
-            <Text style={styles.totalAmount} numberOfLines={1} adjustsFontSizeToFit>
-              {formatPKRFull(naveedContractAmount > 0 ? remainingNaveedContractAmount : totalPaidToNaveed)}
-            </Text>
-
-            {naveedContractAmount > 0 ? (
-              <View style={styles.budgetRow}>
-                <View style={styles.budgetBar}>
-                  <View style={[styles.budgetFill, { width: `${naveedContractPct}%`, backgroundColor: 'rgba(255,255,255,0.7)' }]} />
-                </View>
-                <Text style={styles.budgetPct} numberOfLines={1}>
-                  {Math.round(naveedContractPct)}% {s('budgetUsed')}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.noBudgetHint} numberOfLines={1}>{s('noBudgetSet')}</Text>
-            )}
-
-            {naveedContractAmount > 0 && (
-              <View style={styles.subAmountsRow}>
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('naveed')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(naveedContractAmount)}</Text>
-                </View>
-                <View style={styles.subDivider} />
-                <View style={styles.subAmountBlock}>
-                  <Text style={styles.subAmountLabel} numberOfLines={1}>{s('totalPaid')}</Text>
-                  <Text style={styles.subAmountValue} numberOfLines={1}>{formatPKR(totalPaidToNaveed)}</Text>
-                </View>
-              </View>
-            )}
-          </LinearGradient>
-        )}
-      </LinearGradient>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Time Filter Bar */}
-        <TimeFilterBar value={timeFilter} onChange={setTimeFilter} language={language} />
-
-        {/* Spending Trend Bar Chart */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            📊 {activeTab === 'owner' ? s('spendingTrend') : `${activeTab === 'contractor' ? s('contractor') : s('naveed')} ${s('spendingTrend')}`}
-          </Text>
-          <View style={styles.chartCard}>
-            {barData.some((d) => d.value > 0) ? (
-              <BarChart
-                data={barData}
-                width={width - spacing.md * 4 - 20}
-                height={150}
-                barWidth={22}
-                spacing={10}
-                barBorderRadius={4}
-                hideRules
-                xAxisColor={colors.border}
-                yAxisColor={colors.border}
-                yAxisTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-                xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 8 }}
-                noOfSections={3}
-                yAxisTextNumberOfLines={1}
-                formatYLabel={(v) => formatPKR(v)}
-                isAnimated
-                animationDuration={500}
-              />
-            ) : (
-              <View style={styles.emptyChart}>
-                <Ionicons name="bar-chart-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyChartText}>{s('noExpenses')}</Text>
-              </View>
-            )}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceHeading}>
+            <Text style={styles.balanceLabel}>{budget > 0 ? s('remainingBalance') : owner ? s('totalSpent') : s('totalPaid')}</Text>
+            <View style={styles.currency}><Text style={styles.currencyText}>PKR</Text></View>
           </View>
+          <Text style={[styles.balance, budget > 0 && remaining < 0 && { color: colors.danger }]}
+            numberOfLines={1} adjustsFontSizeToFit>{formatPKRFull(budget > 0 ? remaining : total)}</Text>
+          {budget > 0 ? (
+            <>
+              <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: remaining < 0 ? colors.danger : colors.amber }]} /></View>
+              <View style={styles.balanceDetails}>
+                <View style={styles.balanceColumn}><Text style={styles.meta}>{owner ? s('budget') : s(activeTab)}</Text><Text style={styles.detailValue}>{formatPKR(budget)}</Text></View>
+                <View style={styles.balanceColumn}><Text style={styles.meta}>{owner ? s('totalSpent') : s('totalPaid')}</Text><Text style={styles.detailValue}>{formatPKR(total)}</Text></View>
+                <Text style={styles.used}>{Math.round(pct)}% {s('budgetUsed')}</Text>
+              </View>
+            </>
+          ) : <Text style={styles.meta}>{s('noBudgetSet')}</Text>}
         </View>
-
-        {/* Tab Specific Content */}
-        {activeTab === 'owner' ? (
-          /* Owner View: Materials Categories list */
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🏗️ {s('myMaterials')}</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Materials')}>
-                <Text style={styles.viewAll}>{s('viewAll')}</Text>
-              </TouchableOpacity>
+      </View>
+      <FlatList
+        data={owner ? materials : recent}
+        keyExtractor={(item) => item.id}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            <TimeFilterBar value={timeFilter} onChange={setTimeFilter} language={language} />
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>{s('spendingTrend')}</Text>
+              <Text style={styles.meta}>{s('last7Days')}</Text>
             </View>
-
-            {materials.length === 0 ? (
-              <View style={styles.emptyMaterials}>
-                <Ionicons name="construct-outline" size={56} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>{s('noMaterials')}</Text>
-                <Text style={styles.emptyHint}>{s('addFirstMaterial')}</Text>
-              </View>
-            ) : (
-              materials.map((mat) => (
-                <MaterialCard
-                  key={mat.id}
-                  material={mat}
-                  total={getTotalForMaterial(mat.id, timeFilter)}
-                  expenses={expenses.filter((e) => e.materialId === mat.id)}
-                  language={language}
-                  onPress={() => navigation.navigate('MaterialDetail', { materialId: mat.id })}
-                  onAddExpense={() => navigation.navigate('AddExpense', { materialId: mat.id })}
-                />
-              ))
-            )}
-
-            {/* Recent Materials Expenses */}
-            {recentExpenses.length > 0 && (
-              <View style={[styles.section, { marginTop: spacing.md }]}>
-                <Text style={styles.sectionTitle}>🕒 {s('recentExpenses')}</Text>
-                <View style={styles.recentCard}>
-                  {recentExpenses.map((exp, i) => {
-                    const mat = materials.find((m) => m.id === exp.materialId);
-                    return (
-                      <View key={exp.id} style={[styles.recentRow, i < recentExpenses.length - 1 && styles.recentRowBorder]}>
-                        <View style={[styles.recentDot, { backgroundColor: mat?.color || colors.amber }]} />
-                        <View style={styles.recentInfo}>
-                          <Text style={styles.recentMatName} numberOfLines={1}>{mat?.name || 'Unknown'}</Text>
-                          <Text style={styles.recentDate} numberOfLines={1}>
-                            {formatDate(exp.date)}
-                            {exp.notes ? ` · ${exp.notes}` : ''}
-                          </Text>
-                        </View>
-                        <Text style={styles.recentAmount}>{formatPKR(exp.total)}</Text>
-                      </View>
-                    );
-                  })}
+            <View style={styles.chartCard}>
+              {bars.some((d) => d.value > 0) ? <SpendingChart data={bars} height={100} /> : (
+                <View style={styles.emptyChart}>
+                  <Ionicons name="bar-chart-outline" size={24} color={colors.textMuted} />
+                  <Text style={styles.meta}>{owner ? s('noExpenses') : s('noPayments')}</Text>
                 </View>
-              </View>
-            )}
-          </View>
-        ) : activeTab === 'contractor' ? (
-          /* Contractor View: Contractor payments ledger */
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>👷 {s('contractor')}</Text>
+              )}
             </View>
-
-            {contractorPayments.length === 0 ? (
-              <View style={styles.emptyMaterials}>
-                <Ionicons name="people-outline" size={56} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>{s('noPayments')}</Text>
-                <Text style={styles.emptyHint}>{s('addPaymentHint')}</Text>
-              </View>
-            ) : (
-              <View style={styles.recentCard}>
-                {recentPayments.map((pay, i) => (
-                  <View key={pay.id} style={[styles.recentRow, i < recentPayments.length - 1 && styles.recentRowBorder]}>
-                    <View style={[styles.recentDot, { backgroundColor: colors.info }]} />
-                    <View style={styles.recentInfo}>
-                      <Text style={styles.recentMatName} numberOfLines={1}>{pay.purpose}</Text>
-                      <Text style={styles.recentDate} numberOfLines={1}>
-                        {formatDate(pay.date)}
-                        {pay.notes ? ` · ${pay.notes}` : ''}
-                      </Text>
-                    </View>
-                    <View style={styles.contractorActions}>
-                      <Text style={[styles.recentAmount, { color: colors.info }]}>{formatPKR(pay.amount)}</Text>
-                      <View style={styles.actionIcons}>
-                        <TouchableOpacity
-                          onPress={() => navigation.navigate('AddContractorPayment', { paymentId: pay.id })}
-                          style={styles.smallIconBtn}
-                        >
-                          <Ionicons name="pencil-outline" size={14} color={colors.textMuted} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeletePayment(pay)}
-                          style={styles.smallIconBtn}
-                        >
-                          <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          /* Naveed View: Naveed payments ledger */
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>👷 {s('naveed')}</Text>
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>{owner ? s('myMaterials') : s('recentPayments')}</Text>
+              {owner && <TouchableOpacity accessibilityRole="button" onPress={() => navigation.navigate('Materials')} style={styles.textButton}><Text style={styles.link}>{s('viewAll')}</Text><Ionicons name="arrow-forward" size={14} color={colors.amber} /></TouchableOpacity>}
             </View>
-
-            {naveedPayments.length === 0 ? (
-              <View style={styles.emptyMaterials}>
-                <Ionicons name="people-outline" size={56} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>{s('noPayments')}</Text>
-                <Text style={styles.emptyHint}>{s('addPaymentHint')}</Text>
-              </View>
-            ) : (
-              <View style={styles.recentCard}>
-                {recentNaveedPayments.map((pay, i) => (
-                  <View key={pay.id} style={[styles.recentRow, i < recentNaveedPayments.length - 1 && styles.recentRowBorder]}>
-                    <View style={[styles.recentDot, { backgroundColor: colors.success }]} />
-                    <View style={styles.recentInfo}>
-                      <Text style={styles.recentMatName} numberOfLines={1}>{pay.purpose}</Text>
-                      <Text style={styles.recentDate} numberOfLines={1}>
-                        {formatDate(pay.date)}
-                        {pay.notes ? ` · ${pay.notes}` : ''}
-                      </Text>
-                    </View>
-                    <View style={styles.contractorActions}>
-                      <Text style={[styles.recentAmount, { color: colors.success }]}>{formatPKR(pay.amount)}</Text>
-                      <View style={styles.actionIcons}>
-                        <TouchableOpacity
-                          onPress={() => navigation.navigate('AddNaveedPayment', { paymentId: pay.id })}
-                          style={styles.smallIconBtn}
-                        >
-                          <Ionicons name="pencil-outline" size={14} color={colors.textMuted} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteNaveedPayment(pay)}
-                          style={styles.smallIconBtn}
-                        >
-                          <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
+          </>
+        }
+        renderItem={owner ? ({ item }) => (
+          <MaterialCard material={item} total={filteredIndex[item.id]?.total || 0}
+            expenses={materialIndex[item.id]?.expenses || EMPTY} language={language}
+            onOpen={openMaterial} onAdd={addExpense} />
+        ) : renderPayment}
+        ListEmptyComponent={<View style={styles.empty}>
+          <Ionicons name={owner ? 'cube-outline' : 'receipt-outline'} size={32} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>{owner ? s('noMaterials') : s('noPayments')}</Text>
+          <Text style={styles.emptyHint}>{owner ? s('addFirstMaterial') : s('addPaymentHint')}</Text>
+        </View>}
+        ListFooterComponent={owner && recent.length > 0 ? (
+          <View>
+            <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{s('recentExpenses')}</Text></View>
+            {recent.map((exp) => {
+              const mat = materialMap.get(exp.materialId);
+              return <View key={exp.id} style={styles.recentRow}>
+                <View style={[styles.dot, { backgroundColor: mat?.color || colors.amber }]} />
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowTitle}>{language === 'ur' && mat?.nameUrdu ? mat.nameUrdu : mat?.name || 'Unknown'}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>{formatDate(exp.date)}{exp.notes ? ` · ${exp.notes}` : ''}</Text>
+                </View>
+                <Text style={styles.rowAmount}>{formatPKR(exp.total)}</Text>
+              </View>;
+            })}
           </View>
-        )}
-
-        <View style={{ height: 80 }} />
-      </ScrollView>
-    </View>
+        ) : null}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingTop: 50, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  titleBlock: { flex: 1, marginRight: spacing.sm },
-  headerSubtitle: { color: colors.textMuted, fontSize: font.sm },
-  headerTitle: { color: colors.textPrimary, fontSize: font.xl, fontWeight: '800' },
-  addBtn: {
-    width: 44, height: 44, borderRadius: radius.full,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.bgInput,
-    borderRadius: radius.md,
-    padding: 3,
-    marginVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: radius.md - 2,
-  },
-  toggleBtnActiveOwner: {
-    backgroundColor: colors.amber,
-  },
-  toggleBtnActiveContractor: {
-    backgroundColor: colors.info,
-  },
-  toggleBtnActiveNaveed: {
-    backgroundColor: colors.success,
-  },
-  toggleText: {
-    color: colors.textMuted,
-    fontSize: font.sm,
-    fontWeight: '700',
-  },
-  toggleTextActive: {
-    color: colors.textOnAmber,
-  },
-  totalCard: {
-    borderRadius: radius.xl, padding: spacing.lg, marginTop: spacing.xs,
-  },
-  totalLabel: { color: 'rgba(0,0,0,0.55)', fontSize: font.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  totalAmount: { color: colors.textOnAmber, fontSize: font.xxxl, fontWeight: '800', marginBottom: spacing.xs },
-  budgetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, marginBottom: spacing.sm },
-  budgetBar: { flex: 1, height: 6, backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: radius.full, overflow: 'hidden' },
-  budgetFill: { height: '100%', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: radius.full },
-  budgetPct: { color: 'rgba(0,0,0,0.6)', fontSize: font.xs, fontWeight: '700' },
-  noBudgetHint: { color: 'rgba(0,0,0,0.5)', fontSize: font.xs, fontWeight: '600', marginTop: 4 },
-  subAmountsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    marginTop: spacing.xs,
-  },
-  subAmountBlock: { flex: 1, alignItems: 'center' },
-  subAmountLabel: { color: 'rgba(0,0,0,0.5)', fontSize: font.xs, fontWeight: '600' },
-  subAmountValue: { color: colors.textOnAmber, fontSize: font.sm, fontWeight: '800', marginTop: 2 },
-  subDivider: { width: 1, height: '70%', backgroundColor: 'rgba(0,0,0,0.15)' },
-  scrollContent: { paddingHorizontal: spacing.md },
-  section: { marginTop: spacing.md },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  sectionTitle: { color: colors.textPrimary, fontSize: font.md, fontWeight: '800', marginBottom: spacing.xs },
-  viewAll: { color: colors.amber, fontSize: font.sm, fontWeight: '700' },
-  chartCard: {
-    backgroundColor: colors.bgCard, borderRadius: radius.lg,
-    padding: spacing.md, overflow: 'hidden',
-  },
-  emptyChart: { height: 130, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  emptyChartText: { color: colors.textMuted, fontSize: font.sm },
-  emptyMaterials: {
-    backgroundColor: colors.bgCard, borderRadius: radius.lg,
-    padding: spacing.xxl, alignItems: 'center', gap: spacing.sm,
-  },
-  emptyTitle: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '700' },
-  emptyHint: { color: colors.textMuted, fontSize: font.sm, textAlign: 'center' },
-  recentCard: { backgroundColor: colors.bgCard, borderRadius: radius.lg, overflow: 'hidden' },
-  recentRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 14, gap: spacing.sm },
-  recentRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  recentDot: { width: 8, height: 8, borderRadius: radius.full },
-  recentInfo: { flex: 1, marginRight: spacing.xs },
-  recentMatName: { color: colors.textPrimary, fontSize: font.sm, fontWeight: '700' },
-  recentDate: { color: colors.textMuted, fontSize: font.xs, marginTop: 2 },
-  recentAmount: { fontSize: font.sm, fontWeight: '800', color: colors.amber },
-  contractorActions: { alignItems: 'flex-end', gap: 4 },
-  actionIcons: { flexDirection: 'row', gap: 10 },
-  smallIconBtn: { padding: 2 },
+  header: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  brandIcon: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  titleBlock: { flex: 1 },
+  eyebrow: { color: colors.textMuted, fontSize: 11, marginBottom: 4 },
+  title: { color: colors.textPrimary, fontSize: 19, fontWeight: '600', letterSpacing: -0.3 },
+  addButton: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  accounts: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 16 },
+  account: { flex: 1, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent', paddingHorizontal: 2 },
+  accountActive: { borderBottomColor: colors.amber },
+  accountText: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
+  accountTextActive: { color: colors.amber, fontWeight: '700' },
+  balanceCard: { padding: 18, borderRadius: radius.lg, backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border },
+  balanceHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  balanceLabel: { color: colors.textSecondary, fontSize: 13 },
+  currency: { paddingHorizontal: 7, paddingVertical: 3, borderWidth: 1, borderColor: colors.border, borderRadius: 4 },
+  currencyText: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },
+  balance: { fontSize: 36, color: colors.textPrimary, fontWeight: '600', letterSpacing: -1, marginTop: 8, marginBottom: 14 },
+  progressTrack: { height: 3, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 14 },
+  progressFill: { height: '100%' },
+  balanceDetails: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  balanceColumn: { flex: 1 },
+  detailValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '500', marginTop: 5 },
+  used: { fontSize: 11, color: colors.amber },
+  meta: { fontSize: 12, color: colors.textMuted },
+  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
+  sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 12, gap: 8 },
+  sectionTitle: { fontSize: 16, color: colors.textPrimary, fontWeight: '600' },
+  textButton: { flexDirection: 'row', gap: 5, alignItems: 'center', minHeight: 44 },
+  link: { fontSize: 12, color: colors.amber },
+  chartCard: { backgroundColor: colors.bgCard, borderRadius: radius.md, padding: 16, borderWidth: 1, borderColor: colors.borderLight },
+  emptyChart: { height: 92, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  empty: { padding: 24, alignItems: 'center', gap: 12, backgroundColor: colors.bgCard, borderRadius: radius.md },
+  emptyTitle: { fontSize: 16, color: colors.textPrimary, fontWeight: '600' },
+  emptyHint: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 21 },
+  paymentRow: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, backgroundColor: colors.bgCard, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowInfo: { flex: 1 },
+  rowTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '500' },
+  rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 5 },
+  rowAmount: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  paymentRight: { alignItems: 'flex-end' },
+  actions: { flexDirection: 'row' },
+  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  dot: { width: 6, height: 6, borderRadius: 3 },
 });

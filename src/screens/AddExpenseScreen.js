@@ -1,12 +1,13 @@
 // src/screens/AddExpenseScreen.js
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, StatusBar, Platform,
+  ScrollView, Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import Screen from '../components/Screen';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
 import { getStr } from '../i18n/strings';
@@ -41,6 +42,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   }, [quantity, pricePerUnit]);
 
   const handleSave = async () => {
+    if (saving) return;
     const errs = validateExpense({ materialId, quantity, pricePerUnit }, language);
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
@@ -78,16 +80,14 @@ export default function AddExpenseScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+    <Screen>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('close')} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }} onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{existingExp ? s('editExpense') : s('addExpense')}</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('save')} onPress={handleSave} disabled={saving}>
           <Text style={[styles.saveText, saving && { opacity: 0.5 }]}>{s('save')}</Text>
         </TouchableOpacity>
       </View>
@@ -199,7 +199,7 @@ export default function AddExpenseScreen({ navigation, route }) {
           </View>
           {/* Quick date shortcuts */}
           <View style={styles.dateShortcuts}>
-            {['Today', 'Yesterday', '2 days ago'].map((label, i) => {
+            {[s('thisDay'), s('yesterday'), s('twoDaysAgo')].map((label, i) => {
               const d = new Date();
               d.setDate(d.getDate() - i);
               const isActive = date.toDateString() === d.toDateString();
@@ -232,7 +232,7 @@ export default function AddExpenseScreen({ navigation, route }) {
 
         <View style={{ height: 60 }} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
@@ -240,19 +240,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 54, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
-    backgroundColor: colors.bgCard,
+    paddingTop: 16, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
   headerTitle: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '700' },
-  saveText: { color: colors.amber, fontSize: font.md, fontWeight: '700' },
+  saveText: { paddingVertical: 12, paddingHorizontal: 8, color: colors.amber, fontSize: font.md, fontWeight: '700' },
   scroll: { padding: spacing.md },
   totalDisplay: {
-    backgroundColor: colors.amberGlow, borderRadius: radius.lg,
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
     padding: spacing.lg, alignItems: 'center', marginBottom: spacing.lg,
-    borderWidth: 1, borderColor: colors.amber,
+    borderWidth: 1, borderColor: colors.border,
   },
   totalLabel: { color: colors.textMuted, fontSize: font.sm },
-  totalAmt: { color: colors.amber, fontSize: font.xxxl, fontWeight: '800', marginVertical: 4 },
+  totalAmt: { color: colors.textPrimary, fontSize: font.xxxl, fontWeight: '600', marginVertical: 4 },
   autoCalc: { color: colors.textMuted, fontSize: font.xs },
   section: { marginBottom: spacing.md },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: '600', marginBottom: spacing.sm },
@@ -297,10 +298,10 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: spacing.sm,
   },
-  dateText: { color: colors.textPrimary, fontSize: font.md, fontWeight: '600' },
+  dateText: { flexShrink: 1, textAlign: 'center', color: colors.textPrimary, fontSize: font.md, fontWeight: '600' },
   dateShortcuts: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   dateShortcut: {
-    flex: 1, padding: 8, borderRadius: radius.md,
+    flex: 1, minHeight: 44, justifyContent: 'center', padding: 8, borderRadius: radius.md,
     backgroundColor: colors.bgCard, alignItems: 'center',
   },
   dateShortcutText: { color: colors.textSecondary, fontSize: font.xs, fontWeight: '600' },

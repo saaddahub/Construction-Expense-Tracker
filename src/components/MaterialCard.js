@@ -1,116 +1,49 @@
-// src/components/MaterialCard.js
-import React, { useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { memo, useMemo } from 'react';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Text from './Text';
-
-import { Ionicons } from '@expo/vector-icons';
-import { BarChart } from 'react-native-gifted-charts';
-import { colors, spacing, radius, font } from '../theme/colors';
+import SpendingChart from './SpendingChart';
+import { colors, radius } from '../theme/colors';
 import { formatPKR, groupByDay } from '../utils/helpers';
 import { getStr } from '../i18n/strings';
 
-const { width } = Dimensions.get('window');
-const CHART_WIDTH = width - spacing.md * 4 - 90;
-
-export default function MaterialCard({ material, total, expenses, language, onPress, onAddExpense }) {
-  const s = (key) => getStr(language, key);
-
-  // Mini bar chart — last 7 days
-  const chartData = useMemo(() => {
-    const grouped = groupByDay(expenses, 7);
-    return grouped.map((d) => ({
-      value: d.value,
-      frontColor: material.color || colors.amber,
-    }));
-  }, [expenses, material.color]);
-
+function MaterialCard({ material, total, expenses, language, onOpen, onAdd }) {
+  const chartData = useMemo(() => groupByDay(expenses, 7), [expenses]);
   const hasData = chartData.some((d) => d.value > 0);
-  const displayName = language === 'ur' && material.nameUrdu ? material.nameUrdu : material.name;
-
+  const name = language === 'ur' && material.nameUrdu ? material.nameUrdu : material.name;
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      {/* Left accent bar */}
-      <View style={[styles.accentBar, { backgroundColor: material.color || colors.amber }]} />
-
-      <View style={styles.content}>
-        {/* Top row */}
-        <View style={styles.topRow}>
-          <View style={[styles.iconWrapper, { backgroundColor: `${material.color}22` || colors.amberGlow }]}>
-            <Ionicons
-              name={material.icon || 'cube-outline'}
-              size={22}
-              color={material.color || colors.amber}
-            />
-          </View>
-          <View style={styles.nameBlock}>
-            <Text style={styles.matName}>{displayName}</Text>
-            {material.nameUrdu && language === 'en' && (
-              <Text style={styles.matNameUrdu}>{material.nameUrdu}</Text>
-            )}
-            <Text style={styles.unit}>{material.unit}</Text>
-          </View>
-          <View style={styles.rightBlock}>
-            <Text style={[styles.totalAmt, { color: material.color || colors.amber }]}>
-              {formatPKR(total)}
-            </Text>
-            <TouchableOpacity
-              style={[styles.addExpBtn, { backgroundColor: material.color || colors.amber }]}
-              onPress={onAddExpense}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="add" size={18} color={colors.textOnAmber} />
-            </TouchableOpacity>
-          </View>
+    <View style={styles.card}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={name} style={styles.main}
+        onPress={() => onOpen(material.id)} activeOpacity={0.7}>
+        <View style={styles.icon}><Ionicons name={material.icon || 'cube-outline'} size={21} color={material.color || colors.amber} /></View>
+        <View style={styles.info}>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.meta}>{language === 'en' && material.nameUrdu ? `${material.nameUrdu} · ` : ''}{material.unit}</Text>
+          {!hasData && <Text style={styles.empty}>{getStr(language, 'noExpenses')}</Text>}
         </View>
-
-        {/* Mini Chart */}
-        {hasData ? (
-          <View style={styles.chartWrapper}>
-            <BarChart
-              data={chartData}
-              width={CHART_WIDTH}
-              height={50}
-              barWidth={Math.max(10, (CHART_WIDTH / 7) - 6)}
-              spacing={4}
-              barBorderRadius={3}
-              hideRules
-              hideAxesAndRules
-              hideYAxisText
-              isAnimated
-              animationDuration={500}
-            />
-          </View>
-        ) : (
-          <View style={styles.noChartRow}>
-            <Ionicons name="bar-chart-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.noChartText}>{s('noExpenses')}</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.right}>
+          <Text style={styles.total}>{formatPKR(total)}</Text>
+          {hasData && <View style={styles.spark}><SpendingChart data={chartData} color={colors.textMuted} height={22} compact /></View>}
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel={`${getStr(language, 'addExpense')}: ${name}`}
+        style={styles.add} onPress={() => onAdd(material.id)}>
+        <Ionicons name="add" size={20} color={colors.amber} />
+      </TouchableOpacity>
+    </View>
   );
 }
-
+export default memo(MaterialCard);
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  accentBar: { width: 4 },
-  content: { flex: 1, padding: spacing.md },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
-  iconWrapper: { width: 40, height: 40, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
-  nameBlock: { flex: 1, marginRight: spacing.sm, flexShrink: 1 },
-  matName: { color: colors.textPrimary, fontSize: font.md, fontWeight: '700', flexWrap: 'wrap' },
-  matNameUrdu: { color: colors.textMuted, fontSize: font.xs, marginTop: 1, flexWrap: 'wrap' },
-  unit: { color: colors.textMuted, fontSize: font.xs, marginTop: 2 },
-  rightBlock: { alignItems: 'flex-end', gap: 6, flexShrink: 0, minWidth: 80 },
-  totalAmt: { fontSize: font.md, fontWeight: '800', textAlign: 'right' },
-  addExpBtn: { width: 28, height: 28, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
-  chartWrapper: { marginTop: 4, marginLeft: -4 },
-  noChartRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  noChartText: { color: colors.textMuted, fontSize: font.xs },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bgCard, borderRadius: radius.md, marginBottom: 8, paddingRight: 4, borderWidth: 1, borderColor: colors.borderLight },
+  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingLeft: 12 },
+  icon: { width: 30, alignItems: 'center' },
+  info: { flex: 1 },
+  name: { fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  meta: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
+  empty: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
+  right: { alignItems: 'flex-end', paddingLeft: 4, maxWidth: '40%' },
+  total: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  spark: { width: 68, marginTop: 8 },
+  add: { width: 44, height: 48, justifyContent: 'center', alignItems: 'center' },
 });

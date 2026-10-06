@@ -1,12 +1,13 @@
 // src/screens/AddMaterialScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, StatusBar, FlatList,
+  ScrollView, Alert,
 } from 'react-native';
 import Text from '../components/Text';
+import Screen from '../components/Screen';
 
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, font } from '../theme/colors';
 import { getStr } from '../i18n/strings';
@@ -27,6 +28,7 @@ export default function AddMaterialScreen({ navigation, route }) {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (saving) return;
     if (!name.trim() || name.trim().length < 2) {
       Alert.alert(s('error'), s('nameTooShort'));
       return;
@@ -48,16 +50,14 @@ export default function AddMaterialScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.bg} />
-
+    <Screen>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('close')} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }} onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{existing ? s('editMaterial') : s('addMaterial')}</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={s('save')} onPress={handleSave} disabled={saving}>
           <Text style={[styles.saveText, saving && { opacity: 0.5 }]}>{s('save')}</Text>
         </TouchableOpacity>
       </View>
@@ -144,7 +144,7 @@ export default function AddMaterialScreen({ navigation, route }) {
 
         <View style={{ height: 80 }} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
@@ -152,15 +152,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 54, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
-    backgroundColor: colors.bgCard,
+    paddingTop: 16, paddingHorizontal: spacing.md, paddingBottom: spacing.md,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
   headerTitle: { color: colors.textPrimary, fontSize: font.lg, fontWeight: '700' },
-  saveText: { color: colors.amber, fontSize: font.md, fontWeight: '700' },
+  saveText: { paddingVertical: 12, paddingHorizontal: 8, color: colors.amber, fontSize: font.md, fontWeight: '700' },
   scroll: { padding: spacing.md },
   preview: { alignItems: 'center', paddingVertical: spacing.xl },
   previewIcon: { width: 80, height: 80, borderRadius: radius.xl, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.sm },
-  previewName: { fontSize: font.xl, fontWeight: '800' },
+  previewName: { fontSize: font.xl, fontWeight: '600' },
   previewNameUrdu: { color: colors.textMuted, fontSize: font.md, marginTop: 4 },
   section: { marginBottom: spacing.lg },
   label: { color: colors.textSecondary, fontSize: font.sm, fontWeight: '600', marginBottom: spacing.sm },

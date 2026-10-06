@@ -12,9 +12,12 @@ export const AppProvider = ({ children }) => {
   const [expenses, setExpenses] = useState([]);
   const [contractorPayments, setContractorPayments] = useState([]);
   const [naveedPayments, setNaveedPayments] = useState([]);
+  const [zakirPayments, setZakirPayments] = useState([]);
   const [settings, setSettings] = useState({
     budget: 0,
     contractAmount: 0,
+    naveedContractAmount: 0,
+    zakirContractAmount: 0,
     projectName: 'My Construction',
     currency: 'PKR',
   });
@@ -29,11 +32,12 @@ export const AppProvider = ({ children }) => {
   const loadAll = async () => {
     setIsLoading(true);
     try {
-      const [mats, exps, pays, naveedPays, setts, lang] = await Promise.all([
+      const [mats, exps, pays, naveedPays, zakirPays, setts, lang] = await Promise.all([
         db.getMaterials(),
         db.getExpenses(),
         db.getContractorPayments(),
         db.getNaveedPayments(),
+        db.getZakirPayments(),
         db.getSettings(),
         db.getLanguage(),
       ]);
@@ -41,6 +45,7 @@ export const AppProvider = ({ children }) => {
       setExpenses(exps);
       setContractorPayments(pays);
       setNaveedPayments(naveedPays);
+      setZakirPayments(zakirPays);
       setSettings(setts);
       setLanguage(lang);
     } catch (e) {
@@ -125,6 +130,24 @@ export const AppProvider = ({ children }) => {
     setNaveedPayments((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  // --- Zakir Payments CRUD ---
+  const addZakirPayment = useCallback(async (payment) => {
+    const newPay = await db.addZakirPayment(payment);
+    setZakirPayments((prev) => [newPay, ...prev]);
+    return newPay;
+  }, []);
+
+  const updateZakirPayment = useCallback(async (id, updates) => {
+    const updated = await db.updateZakirPayment(id, updates);
+    setZakirPayments((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
+  }, []);
+
+  const deleteZakirPayment = useCallback(async (id) => {
+    await db.deleteZakirPayment(id);
+    setZakirPayments((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   // --- Settings ---
   const updateSettings = useCallback(async (updates) => {
     const newSettings = { ...settings, ...updates };
@@ -144,7 +167,8 @@ export const AppProvider = ({ children }) => {
     setExpenses([]);
     setContractorPayments([]);
     setNaveedPayments([]);
-    setSettings({ budget: 0, contractAmount: 0, naveedContractAmount: 0, projectName: 'My Construction', currency: 'PKR' });
+    setZakirPayments([]);
+    setSettings({ budget: 0, contractAmount: 0, naveedContractAmount: 0, zakirContractAmount: 0, projectName: 'My Construction', currency: 'PKR' });
   }, []);
 
   // --- Computed values ---
@@ -242,6 +266,29 @@ export const AppProvider = ({ children }) => {
     return getFilteredNaveedPayments(filter).reduce((sum, p) => sum + p.amount, 0);
   }, [getFilteredNaveedPayments, timeFilter]);
 
+  const getFilteredZakirPayments = useCallback((filter = timeFilter) => {
+    const now = new Date();
+    return zakirPayments.filter((p) => {
+      const d = new Date(p.date);
+      if (filter === 'day') {
+        return d.toDateString() === now.toDateString();
+      } else if (filter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return d >= oneWeekAgo && d <= now;
+      } else if (filter === 'month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      } else if (filter === 'year') {
+        return d.getFullYear() === now.getFullYear();
+      }
+      return true; // 'all'
+    });
+  }, [zakirPayments, timeFilter]);
+
+  const getTotalPaidToZakir = useCallback((filter = timeFilter) => {
+    return getFilteredZakirPayments(filter).reduce((sum, p) => sum + p.amount, 0);
+  }, [getFilteredZakirPayments, timeFilter]);
+
   return (
     <AppContext.Provider
       value={{
@@ -250,6 +297,7 @@ export const AppProvider = ({ children }) => {
         expenses,
         contractorPayments,
         naveedPayments,
+        zakirPayments,
         settings,
         isLoading,
         timeFilter,
@@ -266,6 +314,9 @@ export const AppProvider = ({ children }) => {
         addNaveedPayment,
         updateNaveedPayment,
         deleteNaveedPayment,
+        addZakirPayment,
+        updateZakirPayment,
+        deleteZakirPayment,
         updateSettings,
         toggleLanguage,
         clearAllData,
@@ -277,6 +328,8 @@ export const AppProvider = ({ children }) => {
         getTotalPaidToContractor,
         getFilteredNaveedPayments,
         getTotalPaidToNaveed,
+        getFilteredZakirPayments,
+        getTotalPaidToZakir,
         reload: loadAll,
       }}
     >

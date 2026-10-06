@@ -3,12 +3,13 @@ import React, { useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import Text from '../components/Text';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import { colors, font, radius } from '../theme/colors';
+import { colors, radius } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { getStr } from '../i18n/strings';
 
@@ -21,12 +22,15 @@ import AddMaterialScreen from '../screens/AddMaterialScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 import AddContractorPaymentScreen from '../screens/AddContractorPaymentScreen';
 import AddNaveedPaymentScreen from '../screens/AddNaveedPaymentScreen';
+import AddZakirPaymentScreen from '../screens/AddZakirPaymentScreen';
 import MaterialDetailScreen from '../screens/MaterialDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+const navigationTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: colors.bg, card: colors.bgCard, text: colors.textPrimary, border: colors.border, primary: colors.amber } };
 
-function CustomTabBar({ state, descriptors, navigation }) {
+function CustomTabBar({ state, navigation }) {
+  const insets = useSafeAreaInsets();
   const { language } = useApp();
   const s = (key) => getStr(language, key);
 
@@ -38,7 +42,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
   ];
 
   return (
-    <View style={styles.tabBar}>
+    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const tab = tabs[index];
@@ -46,8 +50,13 @@ function CustomTabBar({ state, descriptors, navigation }) {
           <TouchableOpacity
             key={route.key}
             style={styles.tabItem}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isFocused }}
+            accessibilityLabel={tab.label}
+            onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
             onPress={() => {
-              if (!isFocused) navigation.navigate(route.name);
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
             }}
             activeOpacity={0.7}
           >
@@ -55,7 +64,7 @@ function CustomTabBar({ state, descriptors, navigation }) {
               <Ionicons
                 name={isFocused ? tab.icon : `${tab.icon}-outline`}
                 size={22}
-                color={isFocused ? colors.textOnAmber : colors.textMuted}
+                color={isFocused ? colors.amber : colors.textMuted}
               />
             </View>
             <Text style={[styles.tabLabel, isFocused && styles.tabLabelActive]}>
@@ -72,7 +81,8 @@ function MainTabs() {
   return (
     <Tab.Navigator
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      detachInactiveScreens
+      screenOptions={{ headerShown: false, lazy: true, animation: 'none' }}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Materials" component={MaterialsScreen} />
@@ -91,9 +101,11 @@ export default function AppNavigator() {
     }
   }, [isLoading]);
 
+  if (isLoading) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true, cardStyle: { backgroundColor: colors.bg } }}>
+    <NavigationContainer theme={navigationTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true, animationEnabled: false, cardStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="Main" component={MainTabs} />
         <Stack.Screen
           name="AddMaterial"
@@ -115,6 +127,7 @@ export default function AppNavigator() {
           component={AddNaveedPaymentScreen}
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
+        <Stack.Screen name="AddZakirPayment" component={AddZakirPaymentScreen} options={{ presentation: 'modal', gestureEnabled: true }} />
         <Stack.Screen name="MaterialDetail" component={MaterialDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
@@ -124,7 +137,7 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.bg,
     paddingBottom: 20,
     paddingTop: 10,
     borderTopWidth: 1,
@@ -132,6 +145,7 @@ const styles = StyleSheet.create({
   },
   tabItem: {
     flex: 1,
+    minHeight: 48,
     alignItems: 'center',
     gap: 4,
   },
@@ -143,10 +157,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabIconWrapActive: {
-    backgroundColor: colors.amber,
+    backgroundColor: colors.amberGlow,
   },
   tabLabel: {
-    fontSize: font.xs,
+    fontSize: 11,
     color: colors.textMuted,
     fontWeight: '600',
   },

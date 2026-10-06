@@ -13,7 +13,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#0f1117"
+        "backgroundColor": "#121413"
       },
       "package": "com.construction.tracker",
       "permissions": []
@@ -28,7 +28,7 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
-          "backgroundColor": "#0f1117"
+          "backgroundColor": "#121413"
         }
       ]
     ],
